@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Цвета из дизайна Finance Tracker -->
+    <color name="primary_blue">#155DFC</color>
+    <color name="background_gradient_start">#EFF6FF</color>
+    <color name="background_gradient_end">#E0E7FF</color>
+    <color name="text_primary">#101828</color>
+    <color name="text_secondary">#4A5565</color>
+    <color name="input_background">#F3F3F5</color>
+
+    <!-- Системные цвета -->
     <color name="purple_200">#FFBB86FC</color>
     <color name="purple_500">#FF6200EE</color>
     <color name="purple_700">#FF3700B3</color>
