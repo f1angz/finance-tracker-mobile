@@ -18,3 +18,11 @@ val InputTextColor = Color(0xFF717182)
 // Системные цвета
 val White = Color(0xFFFFFFFF)
 val Black = Color(0xFF0A0A0A)
+
+// Цвета для главного экрана
+val BackgroundLight = Color(0xFFF8F9FA)
+val CardBackground = Color(0xFFFFFFFF)
+val GreenPositive = Color(0xFF10B981)
+val RedNegative = Color(0xFFEF4444)
+val BottomNavSelected = Color(0xFF155DFC)
+val BottomNavUnselected = Color(0xFF9CA3AF)
