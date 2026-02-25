@@ -17,7 +17,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
 import mobile.tracker.finance.R
+import mobile.tracker.finance.navigation.Screen
 import mobile.tracker.finance.ui.components.*
 import mobile.tracker.finance.ui.theme.*
 
@@ -28,6 +30,7 @@ import mobile.tracker.finance.ui.theme.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    navController: NavHostController,
     viewModel: HomeViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -37,7 +40,28 @@ fun HomeScreen(
             HomeTopBar()
         },
         bottomBar = {
-            BottomNavBar()
+            BottomNavBar(
+                selectedTab = 0,
+                onTabSelected = { tab ->
+                    when (tab) {
+                        1 -> navController.navigate(Screen.Operations.route) {
+                            launchSingleTop = true
+                        }
+                        2 -> navController.navigate(Screen.Categories.route) {
+                            launchSingleTop = true
+                        }
+                        3 -> navController.navigate(Screen.Limits.route) {
+                            launchSingleTop = true
+                        }
+                        4 -> navController.navigate(Screen.Goals.route) {
+                            launchSingleTop = true
+                        }
+                        5 -> navController.navigate(Screen.Settings.route) {
+                            launchSingleTop = true
+                        }
+                    }
+                }
+            )
         },
         containerColor = BackgroundLight
     ) { paddingValues ->

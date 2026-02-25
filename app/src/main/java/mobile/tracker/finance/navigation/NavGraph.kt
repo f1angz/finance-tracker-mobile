@@ -6,7 +6,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import mobile.tracker.finance.ui.screens.auth.login.LoginScreen
 import mobile.tracker.finance.ui.screens.auth.register.RegisterScreen
+import mobile.tracker.finance.ui.screens.categories.CategoriesScreen
 import mobile.tracker.finance.ui.screens.home.HomeScreen
+import mobile.tracker.finance.ui.screens.goals.GoalsScreen
+import mobile.tracker.finance.ui.screens.limits.LimitsScreen
+import mobile.tracker.finance.ui.screens.operations.OperationsScreen
+import mobile.tracker.finance.ui.screens.settings.SettingsScreen
 
 /**
  * Граф навигации приложения
@@ -30,7 +35,6 @@ fun NavGraph(
                     navController.navigate(Screen.Register.route)
                 },
                 onLoginSuccess = {
-                    // Переход на главный экран после успешного входа
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
@@ -45,7 +49,6 @@ fun NavGraph(
                     navController.popBackStack()
                 },
                 onRegisterSuccess = {
-                    // Переход на главный экран после успешной регистрации
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Register.route) { inclusive = true }
                     }
@@ -55,7 +58,32 @@ fun NavGraph(
 
         // Главный экран
         composable(route = Screen.Home.route) {
-            HomeScreen()
+            HomeScreen(navController = navController)
+        }
+
+        // Экран операций
+        composable(route = Screen.Operations.route) {
+            OperationsScreen(navController = navController)
+        }
+
+        // Экран категорий
+        composable(route = Screen.Categories.route) {
+            CategoriesScreen(navController = navController)
+        }
+
+        // Экран лимитов
+        composable(route = Screen.Limits.route) {
+            LimitsScreen(navController = navController)
+        }
+
+        // Экран целей и долгов
+        composable(route = Screen.Goals.route) {
+            GoalsScreen(navController = navController)
+        }
+
+        // Экран настроек
+        composable(route = Screen.Settings.route) {
+            SettingsScreen(navController = navController)
         }
     }
 }

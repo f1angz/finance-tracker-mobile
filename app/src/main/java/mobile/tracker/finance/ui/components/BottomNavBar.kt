@@ -16,10 +16,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import mobile.tracker.finance.R
 import mobile.tracker.finance.ui.theme.*
 
 /**
@@ -34,11 +38,19 @@ fun BottomNavBar(
     modifier: Modifier = Modifier
 ) {
     val tabs = listOf(
-        BottomNavItem("Главная", Icons.Filled.Home, Icons.Outlined.Home),
-        BottomNavItem("Бюджеты", Icons.Filled.AccountCircle, Icons.Outlined.AccountCircle),
-        BottomNavItem("Категории", Icons.Filled.List, Icons.Outlined.List),
-        BottomNavItem("Аналитика", Icons.Filled.Info, Icons.Outlined.Info),
-        BottomNavItem("Цели", Icons.Filled.Star, Icons.Outlined.Star)
+        BottomNavItem("Главная", ImageVector.vectorResource(R.drawable.main),
+            ImageVector.vectorResource(R.drawable.main)),
+        BottomNavItem("Операции", ImageVector.vectorResource(R.drawable.operations),
+            ImageVector.vectorResource(R.drawable.operations)),
+        BottomNavItem("Категории", ImageVector.vectorResource(R.drawable.category),
+            ImageVector.vectorResource(R.drawable.category)),
+        BottomNavItem("Лимиты", ImageVector.vectorResource(R.drawable.limits),
+            ImageVector.vectorResource(R.drawable.limits)),
+        BottomNavItem("Цели", ImageVector.vectorResource(R.drawable.goals),
+            ImageVector.vectorResource(R.drawable.goals)),
+        BottomNavItem("Ещё", ImageVector.vectorResource(R.drawable.settings),
+
+            ImageVector.vectorResource(R.drawable.settings))
     )
 
     Row(
