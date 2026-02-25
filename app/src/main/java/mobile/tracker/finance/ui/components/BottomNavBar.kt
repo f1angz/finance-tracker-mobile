@@ -44,8 +44,8 @@ fun BottomNavBar(
             ImageVector.vectorResource(R.drawable.operations)),
         BottomNavItem("Категории", ImageVector.vectorResource(R.drawable.category),
             ImageVector.vectorResource(R.drawable.category)),
-        BottomNavItem("Лимиты", ImageVector.vectorResource(R.drawable.limits),
-            ImageVector.vectorResource(R.drawable.limits)),
+        BottomNavItem("ИИ", Icons.Default.AutoAwesome, Icons.Default.AutoAwesome,
+            selectedColor = AiAssistantColor),
         BottomNavItem("Цели", ImageVector.vectorResource(R.drawable.goals),
             ImageVector.vectorResource(R.drawable.goals)),
         BottomNavItem("Ещё", ImageVector.vectorResource(R.drawable.settings),
@@ -77,7 +77,8 @@ fun BottomNavBar(
 private data class BottomNavItem(
     val label: String,
     val selectedIcon: ImageVector,
-    val unselectedIcon: ImageVector
+    val unselectedIcon: ImageVector,
+    val selectedColor: Color = BottomNavSelected
 )
 
 /**
@@ -106,14 +107,14 @@ private fun BottomNavItemView(
         Icon(
             imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
             contentDescription = item.label,
-            tint = if (isSelected) BottomNavSelected else BottomNavUnselected,
+            tint = if (isSelected) item.selectedColor else BottomNavUnselected,
             modifier = Modifier.size(24.dp)
         )
         Text(
             text = item.label,
             fontSize = 10.sp,
             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (isSelected) BottomNavSelected else BottomNavUnselected
+            color = if (isSelected) item.selectedColor else BottomNavUnselected
         )
     }
 }

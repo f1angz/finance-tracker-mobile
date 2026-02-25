@@ -10,6 +10,7 @@ sealed class Screen(val route: String) {
     object Operations : Screen("operations")
     object Categories : Screen("categories")
     object Limits : Screen("limits")
+    object AiAssistant : Screen("ai_assistant")
     object Goals : Screen("goals")
     object Settings : Screen("settings")
 }

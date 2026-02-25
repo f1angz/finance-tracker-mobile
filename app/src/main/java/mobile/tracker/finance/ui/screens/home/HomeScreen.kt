@@ -50,7 +50,7 @@ fun HomeScreen(
                         2 -> navController.navigate(Screen.Categories.route) {
                             launchSingleTop = true
                         }
-                        3 -> navController.navigate(Screen.Limits.route) {
+                        3 -> navController.navigate(Screen.AiAssistant.route) {
                             launchSingleTop = true
                         }
                         4 -> navController.navigate(Screen.Goals.route) {

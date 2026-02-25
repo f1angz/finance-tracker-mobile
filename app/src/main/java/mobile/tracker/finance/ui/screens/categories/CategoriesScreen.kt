@@ -58,7 +58,7 @@ fun CategoriesScreen(
                         1 -> navController.navigate(Screen.Operations.route) {
                             launchSingleTop = true
                         }
-                        3 -> navController.navigate(Screen.Limits.route) {
+                        3 -> navController.navigate(Screen.AiAssistant.route) {
                             launchSingleTop = true
                         }
                         4 -> navController.navigate(Screen.Goals.route) {
