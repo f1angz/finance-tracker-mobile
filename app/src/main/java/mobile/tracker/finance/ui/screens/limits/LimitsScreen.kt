@@ -26,6 +26,7 @@ import androidx.navigation.NavHostController
 import mobile.tracker.finance.data.models.Limit
 import mobile.tracker.finance.data.models.LimitStatus
 import mobile.tracker.finance.navigation.Screen
+import mobile.tracker.finance.ui.components.AddTransactionBottomSheet
 import mobile.tracker.finance.ui.components.BottomNavBar
 import mobile.tracker.finance.ui.theme.*
 
@@ -56,9 +57,17 @@ fun LimitsScreen(
     viewModel: LimitsViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var showAddDialog by remember { mutableStateOf(false) }
+
+    if (showAddDialog) {
+        AddTransactionBottomSheet(
+            onDismiss = { showAddDialog = false },
+            onSave = { viewModel.addTransaction(it) }
+        )
+    }
 
     Scaffold(
-        topBar = { LimitsTopBar(onAddClick = viewModel::onAddLimit) },
+        topBar = { LimitsTopBar(onAddClick = { showAddDialog = true }) },
         bottomBar = {
             BottomNavBar(
                 selectedTab = 3,

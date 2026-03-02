@@ -37,4 +37,9 @@ interface FinanceRepository {
         filter: TransactionFilter = TransactionFilter.ALL,
         searchQuery: String = ""
     ): Result<List<TransactionGroup>>
+
+    /**
+     * Добавить новую транзакцию
+     */
+    suspend fun addTransaction(transaction: Transaction)
 }

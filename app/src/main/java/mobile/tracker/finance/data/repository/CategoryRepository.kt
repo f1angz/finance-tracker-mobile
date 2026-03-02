@@ -14,4 +14,9 @@ interface CategoryRepository {
      * @param filter Фильтр по типу категории (расходы / доходы / прочие)
      */
     suspend fun getCategories(filter: CategoryFilter): Result<List<Category>>
+
+    /**
+     * Добавить новую категорию
+     */
+    suspend fun addCategory(category: Category)
 }

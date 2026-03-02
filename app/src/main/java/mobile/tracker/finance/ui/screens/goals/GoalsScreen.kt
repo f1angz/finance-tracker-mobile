@@ -35,6 +35,7 @@ import mobile.tracker.finance.data.models.Debt
 import mobile.tracker.finance.data.models.DebtType
 import mobile.tracker.finance.data.models.Goal
 import mobile.tracker.finance.navigation.Screen
+import mobile.tracker.finance.ui.components.AddTransactionBottomSheet
 import mobile.tracker.finance.ui.components.BottomNavBar
 import mobile.tracker.finance.ui.theme.*
 
@@ -68,17 +69,18 @@ fun GoalsScreen(
     viewModel: GoalsViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var showAddDialog by remember { mutableStateOf(false) }
+
+    if (showAddDialog) {
+        AddTransactionBottomSheet(
+            onDismiss = { showAddDialog = false },
+            onSave = { viewModel.addTransaction(it) }
+        )
+    }
 
     Scaffold(
         topBar = {
-            GoalsTopBar(
-                onAddClick = {
-                    when (uiState.selectedTab) {
-                        GoalsTab.GOALS -> viewModel.onAddGoal()
-                        GoalsTab.DEBTS -> viewModel.onAddDebt()
-                    }
-                }
-            )
+            GoalsTopBar(onAddClick = { showAddDialog = true })
         },
         bottomBar = {
             BottomNavBar(

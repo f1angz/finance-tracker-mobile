@@ -27,6 +27,13 @@ class HomeViewModel(
         loadData()
     }
 
+    fun addTransaction(transaction: Transaction) {
+        viewModelScope.launch {
+            repository.addTransaction(transaction)
+            loadData()
+        }
+    }
+
     /**
      * Загрузить все данные для главного экрана
      */

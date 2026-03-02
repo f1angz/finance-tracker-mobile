@@ -9,8 +9,11 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import mobile.tracker.finance.data.models.Category
 import mobile.tracker.finance.data.models.CategoryFilter
+import mobile.tracker.finance.data.models.Transaction
 import mobile.tracker.finance.data.repository.CategoryRepository
+import mobile.tracker.finance.data.repository.FinanceRepository
 import mobile.tracker.finance.data.repository.MockCategoryRepository
+import mobile.tracker.finance.data.repository.MockFinanceRepository
 import mobile.tracker.finance.utils.Result
 
 data class CategoriesUiState(
@@ -22,7 +25,8 @@ data class CategoriesUiState(
 )
 
 class CategoriesViewModel(
-    private val repository: CategoryRepository = MockCategoryRepository()
+    private val repository: CategoryRepository = MockCategoryRepository(),
+    private val financeRepository: FinanceRepository = MockFinanceRepository()
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CategoriesUiState())
@@ -62,6 +66,20 @@ class CategoriesViewModel(
                     error = errorMessage
                 )
             }
+        }
+    }
+
+    fun addTransaction(transaction: Transaction) {
+        viewModelScope.launch {
+            financeRepository.addTransaction(transaction)
+        }
+    }
+
+    fun addCategory(category: Category) {
+        viewModelScope.launch {
+            repository.addCategory(category)
+            cachedByFilter.clear()
+            loadAllCategories()
         }
     }
 

@@ -21,6 +21,7 @@ import androidx.navigation.NavHostController
 import mobile.tracker.finance.R
 import mobile.tracker.finance.navigation.Screen
 import mobile.tracker.finance.ui.components.*
+import mobile.tracker.finance.ui.components.AddTransactionBottomSheet
 import mobile.tracker.finance.ui.theme.*
 
 /**
@@ -34,10 +35,18 @@ fun HomeScreen(
     viewModel: HomeViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var showAddDialog by remember { mutableStateOf(false) }
+
+    if (showAddDialog) {
+        AddTransactionBottomSheet(
+            onDismiss = { showAddDialog = false },
+            onSave = { viewModel.addTransaction(it) }
+        )
+    }
 
     Scaffold(
         topBar = {
-            HomeTopBar()
+            HomeTopBar(onAddClick = { showAddDialog = true })
         },
         bottomBar = {
             BottomNavBar(
@@ -210,7 +219,7 @@ fun HomeScreen(
  * Верхняя панель главного экрана
  */
 @Composable
-private fun HomeTopBar() {
+private fun HomeTopBar(onAddClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -260,7 +269,7 @@ private fun HomeTopBar() {
 
             // Кнопка добавления транзакции
             IconButton(
-                onClick = { /* TODO: Добавить транзакцию */ },
+                onClick = onAddClick,
                 modifier = Modifier.background(PrimaryBlue, CircleShape)
             ) {
                 Icon(

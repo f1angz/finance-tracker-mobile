@@ -29,6 +29,7 @@ import mobile.tracker.finance.data.models.TransactionFilter
 import mobile.tracker.finance.data.models.TransactionGroup
 import mobile.tracker.finance.data.models.TransactionType
 import mobile.tracker.finance.navigation.Screen
+import mobile.tracker.finance.ui.components.AddTransactionBottomSheet
 import mobile.tracker.finance.ui.components.BottomNavBar
 import mobile.tracker.finance.ui.theme.*
 import java.text.DecimalFormat
@@ -43,9 +44,17 @@ fun OperationsScreen(
     viewModel: OperationsViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var showAddDialog by remember { mutableStateOf(false) }
+
+    if (showAddDialog) {
+        AddTransactionBottomSheet(
+            onDismiss = { showAddDialog = false },
+            onSave = { viewModel.addTransaction(it) }
+        )
+    }
 
     Scaffold(
-        topBar = { OperationsTopBar() },
+        topBar = { OperationsTopBar(onAddClick = { showAddDialog = true }) },
         bottomBar = {
             BottomNavBar(
                 selectedTab = 1,
@@ -146,7 +155,7 @@ fun OperationsScreen(
 // ─── Top Bar ─────────────────────────────────────────────────────────────────
 
 @Composable
-private fun OperationsTopBar() {
+private fun OperationsTopBar(onAddClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -193,7 +202,7 @@ private fun OperationsTopBar() {
             }
 
             IconButton(
-                onClick = { /* TODO: Add transaction */ },
+                onClick = onAddClick,
                 modifier = Modifier.background(PrimaryBlue, CircleShape)
             ) {
                 Icon(

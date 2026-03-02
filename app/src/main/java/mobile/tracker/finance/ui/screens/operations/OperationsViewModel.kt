@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import mobile.tracker.finance.data.models.Transaction
 import mobile.tracker.finance.data.models.TransactionFilter
 import mobile.tracker.finance.data.models.TransactionGroup
 import mobile.tracker.finance.data.repository.FinanceRepository
@@ -48,6 +49,13 @@ class OperationsViewModel(
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
             delay(300)
+            loadTransactions()
+        }
+    }
+
+    fun addTransaction(transaction: Transaction) {
+        viewModelScope.launch {
+            repository.addTransaction(transaction)
             loadTransactions()
         }
     }

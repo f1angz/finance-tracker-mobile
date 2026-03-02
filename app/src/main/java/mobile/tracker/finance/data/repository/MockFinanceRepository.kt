@@ -10,6 +10,92 @@ import mobile.tracker.finance.utils.Result
  */
 class MockFinanceRepository : FinanceRepository {
 
+    companion object {
+        // Shared mutable list — all ViewModel instances see the same data
+        val transactions = mutableListOf(
+            Transaction(
+                id = "op_1",
+                title = "Продукты",
+                description = "Супермаркет Пятёрочка",
+                amount = -3450.0,
+                category = TransactionCategory.PRODUCTS,
+                date = "Сегодня",
+                time = "14:30",
+                type = TransactionType.EXPENSE
+            ),
+            Transaction(
+                id = "op_2",
+                title = "Зарплата",
+                description = "Ежемесячная зарплата",
+                amount = 85000.0,
+                category = TransactionCategory.SALARY,
+                date = "Вчера",
+                time = "09:00",
+                type = TransactionType.INCOME
+            ),
+            Transaction(
+                id = "op_3",
+                title = "Транспорт",
+                description = "Заправка автомобиля",
+                amount = -1200.0,
+                category = TransactionCategory.TRANSPORT,
+                date = "Вчера",
+                time = "08:15",
+                type = TransactionType.EXPENSE
+            ),
+            Transaction(
+                id = "op_4",
+                title = "Развлечения",
+                description = "Кино с семьёй",
+                amount = -2800.0,
+                category = TransactionCategory.ENTERTAINMENT,
+                date = "2 дня назад",
+                time = "19:45",
+                type = TransactionType.EXPENSE
+            ),
+            Transaction(
+                id = "op_5",
+                title = "Фриланс",
+                description = "Разработка проекта",
+                amount = 25000.0,
+                category = TransactionCategory.FREELANCE,
+                date = "3 дня назад",
+                time = "15:00",
+                type = TransactionType.INCOME
+            ),
+            Transaction(
+                id = "op_6",
+                title = "Одежда",
+                description = "Онлайн-магазин Wildberries",
+                amount = -4500.0,
+                category = TransactionCategory.CLOTHING,
+                date = "3 дня назад",
+                time = "11:20",
+                type = TransactionType.EXPENSE
+            ),
+            Transaction(
+                id = "op_7",
+                title = "Здоровье",
+                description = "Аптека 36.6",
+                amount = -1800.0,
+                category = TransactionCategory.HEALTH,
+                date = "5 дней назад",
+                time = "10:05",
+                type = TransactionType.EXPENSE
+            ),
+            Transaction(
+                id = "op_8",
+                title = "Фриланс",
+                description = "Консультация клиента",
+                amount = 12000.0,
+                category = TransactionCategory.FREELANCE,
+                date = "5 дней назад",
+                time = "17:30",
+                type = TransactionType.INCOME
+            )
+        )
+    }
+
     /**
      * Получить статистику финансов с мок-данными
      */
@@ -66,65 +152,19 @@ class MockFinanceRepository : FinanceRepository {
     }
 
     /**
+     * Добавить новую транзакцию
+     */
+    override suspend fun addTransaction(transaction: Transaction) {
+        delay(200)
+        transactions.add(0, transaction)
+    }
+
+    /**
      * Получить последние транзакции для главного экрана
      */
     override suspend fun getRecentTransactions(limit: Int): Result<List<Transaction>> {
         delay(400)
-
-        val transactions = listOf(
-            Transaction(
-                id = "1",
-                title = "Продукты",
-                description = "Супермаркет Пятёрочка",
-                amount = -3450.0,
-                category = TransactionCategory.PRODUCTS,
-                date = "Сегодня",
-                time = "14:30",
-                type = TransactionType.EXPENSE
-            ),
-            Transaction(
-                id = "2",
-                title = "Зарплата",
-                description = "Ежемесячная зарплата",
-                amount = 85000.0,
-                category = TransactionCategory.SALARY,
-                date = "Вчера",
-                time = "09:00",
-                type = TransactionType.INCOME
-            ),
-            Transaction(
-                id = "3",
-                title = "Транспорт",
-                description = "Заправка автомобиля",
-                amount = -1200.0,
-                category = TransactionCategory.TRANSPORT,
-                date = "Вчера",
-                time = "08:15",
-                type = TransactionType.EXPENSE
-            ),
-            Transaction(
-                id = "4",
-                title = "Развлечения",
-                description = "Кино с семьёй",
-                amount = -2800.0,
-                category = TransactionCategory.ENTERTAINMENT,
-                date = "2 дня назад",
-                time = "19:45",
-                type = TransactionType.EXPENSE
-            ),
-            Transaction(
-                id = "5",
-                title = "Фриланс",
-                description = "Разработка проекта",
-                amount = 15000.0,
-                category = TransactionCategory.FREELANCE,
-                date = "3 дня назад",
-                time = "15:00",
-                type = TransactionType.INCOME
-            )
-        ).take(limit)
-
-        return Result.Success(transactions)
+        return Result.Success(transactions.take(limit))
     }
 
     /**
@@ -136,99 +176,11 @@ class MockFinanceRepository : FinanceRepository {
     ): Result<List<TransactionGroup>> {
         delay(400)
 
-        val allTransactions = listOf(
-            // Сегодня
-            Transaction(
-                id = "op_1",
-                title = "Продукты",
-                description = "Супермаркет Пятёрочка",
-                amount = -3450.0,
-                category = TransactionCategory.PRODUCTS,
-                date = "Сегодня",
-                time = "14:30",
-                type = TransactionType.EXPENSE
-            ),
-            // Вчера
-            Transaction(
-                id = "op_2",
-                title = "Зарплата",
-                description = "Ежемесячная зарплата",
-                amount = 85000.0,
-                category = TransactionCategory.SALARY,
-                date = "Вчера",
-                time = "09:00",
-                type = TransactionType.INCOME
-            ),
-            Transaction(
-                id = "op_3",
-                title = "Транспорт",
-                description = "Заправка автомобиля",
-                amount = -1200.0,
-                category = TransactionCategory.TRANSPORT,
-                date = "Вчера",
-                time = "08:15",
-                type = TransactionType.EXPENSE
-            ),
-            // 2 дня назад
-            Transaction(
-                id = "op_4",
-                title = "Развлечения",
-                description = "Кино с семьёй",
-                amount = -2800.0,
-                category = TransactionCategory.ENTERTAINMENT,
-                date = "2 дня назад",
-                time = "19:45",
-                type = TransactionType.EXPENSE
-            ),
-            // 3 дня назад
-            Transaction(
-                id = "op_5",
-                title = "Фриланс",
-                description = "Разработка проекта",
-                amount = 25000.0,
-                category = TransactionCategory.FREELANCE,
-                date = "3 дня назад",
-                time = "15:00",
-                type = TransactionType.INCOME
-            ),
-            Transaction(
-                id = "op_6",
-                title = "Одежда",
-                description = "Онлайн-магазин Wildberries",
-                amount = -4500.0,
-                category = TransactionCategory.CLOTHING,
-                date = "3 дня назад",
-                time = "11:20",
-                type = TransactionType.EXPENSE
-            ),
-            // 5 дней назад
-            Transaction(
-                id = "op_7",
-                title = "Здоровье",
-                description = "Аптека 36.6",
-                amount = -1800.0,
-                category = TransactionCategory.HEALTH,
-                date = "5 дней назад",
-                time = "10:05",
-                type = TransactionType.EXPENSE
-            ),
-            Transaction(
-                id = "op_8",
-                title = "Фриланс",
-                description = "Консультация клиента",
-                amount = 12000.0,
-                category = TransactionCategory.FREELANCE,
-                date = "5 дней назад",
-                time = "17:30",
-                type = TransactionType.INCOME
-            )
-        )
-
         // Применяем фильтр по типу
         val filteredByType = when (filter) {
-            TransactionFilter.ALL -> allTransactions
-            TransactionFilter.INCOME -> allTransactions.filter { it.type == TransactionType.INCOME }
-            TransactionFilter.EXPENSE -> allTransactions.filter { it.type == TransactionType.EXPENSE }
+            TransactionFilter.ALL -> transactions.toList()
+            TransactionFilter.INCOME -> transactions.filter { it.type == TransactionType.INCOME }
+            TransactionFilter.EXPENSE -> transactions.filter { it.type == TransactionType.EXPENSE }
         }
 
         // Применяем поиск по названию и описанию

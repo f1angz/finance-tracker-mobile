@@ -8,7 +8,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import mobile.tracker.finance.data.models.Limit
+import mobile.tracker.finance.data.models.Transaction
+import mobile.tracker.finance.data.repository.FinanceRepository
 import mobile.tracker.finance.data.repository.LimitRepository
+import mobile.tracker.finance.data.repository.MockFinanceRepository
 import mobile.tracker.finance.data.repository.MockLimitRepository
 import mobile.tracker.finance.utils.Result
 
@@ -26,6 +29,7 @@ class LimitsViewModel : ViewModel() {
 
     // TODO: заменить на DI-инъекцию при подключении реального бекенда
     private val repository: LimitRepository = MockLimitRepository()
+    private val financeRepository: FinanceRepository = MockFinanceRepository()
 
     private val _uiState = MutableStateFlow(LimitsUiState(isLoading = true))
     val uiState: StateFlow<LimitsUiState> = _uiState.asStateFlow()
@@ -46,6 +50,12 @@ class LimitsViewModel : ViewModel() {
                 }
                 else -> Unit
             }
+        }
+    }
+
+    fun addTransaction(transaction: Transaction) {
+        viewModelScope.launch {
+            financeRepository.addTransaction(transaction)
         }
     }
 

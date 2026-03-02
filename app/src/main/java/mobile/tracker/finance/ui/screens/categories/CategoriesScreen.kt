@@ -30,6 +30,8 @@ import mobile.tracker.finance.R
 import mobile.tracker.finance.data.models.Category
 import mobile.tracker.finance.data.models.CategoryFilter
 import mobile.tracker.finance.navigation.Screen
+import mobile.tracker.finance.ui.components.AddCategoryDialog
+import mobile.tracker.finance.ui.components.AddTransactionBottomSheet
 import mobile.tracker.finance.ui.components.BottomNavBar
 import mobile.tracker.finance.ui.theme.*
 import java.text.DecimalFormat
@@ -43,9 +45,38 @@ fun CategoriesScreen(
     viewModel: CategoriesViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var showAddDialog by remember { mutableStateOf(false) }
+    var showAddCategoryDialog by remember { mutableStateOf(false) }
+
+    if (showAddDialog) {
+        AddTransactionBottomSheet(
+            onDismiss = { showAddDialog = false },
+            onSave = { viewModel.addTransaction(it) }
+        )
+    }
+
+    if (showAddCategoryDialog) {
+        AddCategoryDialog(
+            onDismiss = { showAddCategoryDialog = false },
+            onSave = { viewModel.addCategory(it) }
+        )
+    }
 
     Scaffold(
-        topBar = { CategoriesTopBar() },
+        topBar = { CategoriesTopBar(onAddClick = { showAddDialog = true }) },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { showAddCategoryDialog = true },
+                containerColor = PrimaryBlue,
+                contentColor = White,
+                shape = CircleShape
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Добавить категорию"
+                )
+            }
+        },
         bottomBar = {
             BottomNavBar(
                 selectedTab = 2,
@@ -131,7 +162,7 @@ fun CategoriesScreen(
 // ─── Top Bar ─────────────────────────────────────────────────────────────────
 
 @Composable
-private fun CategoriesTopBar() {
+private fun CategoriesTopBar(onAddClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -178,12 +209,12 @@ private fun CategoriesTopBar() {
             }
 
             IconButton(
-                onClick = { /* TODO: добавить категорию */ },
+                onClick = onAddClick,
                 modifier = Modifier.background(PrimaryBlue, CircleShape)
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "Добавить категорию",
+                    contentDescription = "Добавить операцию",
                     tint = White
                 )
             }

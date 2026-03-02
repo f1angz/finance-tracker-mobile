@@ -10,9 +10,12 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import mobile.tracker.finance.data.models.Debt
 import mobile.tracker.finance.data.models.Goal
+import mobile.tracker.finance.data.models.Transaction
 import mobile.tracker.finance.data.repository.DebtRepository
+import mobile.tracker.finance.data.repository.FinanceRepository
 import mobile.tracker.finance.data.repository.GoalRepository
 import mobile.tracker.finance.data.repository.MockDebtRepository
+import mobile.tracker.finance.data.repository.MockFinanceRepository
 import mobile.tracker.finance.data.repository.MockGoalRepository
 import mobile.tracker.finance.utils.Result
 
@@ -34,6 +37,7 @@ class GoalsViewModel : ViewModel() {
     // TODO: заменить на DI-инъекцию при подключении реального бекенда
     private val goalRepository: GoalRepository = MockGoalRepository()
     private val debtRepository: DebtRepository = MockDebtRepository()
+    private val financeRepository: FinanceRepository = MockFinanceRepository()
 
     private val _uiState = MutableStateFlow(GoalsUiState(isLoading = true))
     val uiState: StateFlow<GoalsUiState> = _uiState.asStateFlow()
@@ -76,6 +80,12 @@ class GoalsViewModel : ViewModel() {
 
     fun selectTab(tab: GoalsTab) {
         _uiState.update { it.copy(selectedTab = tab) }
+    }
+
+    fun addTransaction(transaction: Transaction) {
+        viewModelScope.launch {
+            financeRepository.addTransaction(transaction)
+        }
     }
 
     fun onAddGoal() {
