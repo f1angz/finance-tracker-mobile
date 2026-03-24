@@ -29,6 +29,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import mobile.tracker.finance.data.models.Debt
@@ -37,6 +39,7 @@ import mobile.tracker.finance.data.models.Goal
 import mobile.tracker.finance.navigation.Screen
 import mobile.tracker.finance.ui.components.AddTransactionBottomSheet
 import mobile.tracker.finance.ui.components.BottomNavBar
+import mobile.tracker.finance.ui.screens.operations.DraftViewModel
 import mobile.tracker.finance.ui.theme.*
 
 // ─── Цвета, специфичные для экрана Цели ──────────────────────────────────────
@@ -69,12 +72,17 @@ fun GoalsScreen(
     viewModel: GoalsViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val draftViewModel: DraftViewModel = viewModel(context as ViewModelStoreOwner)
+    val draft by draftViewModel.draft.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
 
     if (showAddDialog) {
         AddTransactionBottomSheet(
-            onDismiss = { showAddDialog = false },
-            onSave = { viewModel.addTransaction(it) }
+            onDismiss    = { showAddDialog = false },
+            onSave       = { viewModel.addTransaction(it); draftViewModel.clearDraft() },
+            initialDraft = draft,
+            onDraftSave  = draftViewModel::saveDraft
         )
     }
 
@@ -107,7 +115,7 @@ fun GoalsScreen(
                 }
             )
         },
-        containerColor = Color(0xFFF9FAFB)
+        containerColor = LocalAppColors.current.background
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -167,10 +175,12 @@ fun GoalsScreen(
 
 @Composable
 private fun GoalsTopBar(onAddClick: () -> Unit) {
+    val colors = LocalAppColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(CardBackground)
+            .background(colors.cardBackground)
+            .statusBarsPadding()
     ) {
         Row(
             modifier = Modifier
@@ -187,14 +197,14 @@ private fun GoalsTopBar(onAddClick: () -> Unit) {
                     Icon(
                         imageVector = Icons.Default.Menu,
                         contentDescription = "Меню",
-                        tint = TextPrimary
+                        tint = colors.textPrimary
                     )
                 }
                 Text(
                     text = "Цели",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextPrimary
+                    color = colors.textPrimary
                 )
             }
 
@@ -204,7 +214,7 @@ private fun GoalsTopBar(onAddClick: () -> Unit) {
                         Icon(
                             imageVector = Icons.Default.Notifications,
                             contentDescription = "Уведомления",
-                            tint = TextPrimary
+                            tint = colors.textPrimary
                         )
                     }
                     Box(
@@ -228,7 +238,7 @@ private fun GoalsTopBar(onAddClick: () -> Unit) {
             }
         }
 
-        HorizontalDivider(color = HeaderBorder, thickness = 1.dp)
+        HorizontalDivider(color = colors.cardBorder, thickness = 1.dp)
     }
 }
 
@@ -246,7 +256,7 @@ private fun GoalsTabSwitcher(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp)
             .height(36.dp)
-            .background(TabBg, RoundedCornerShape(14.dp))
+            .background(LocalAppColors.current.inputBackground, RoundedCornerShape(14.dp))
     ) {
         Row(modifier = Modifier.fillMaxSize()) {
             GoalsTabItem(
@@ -276,6 +286,7 @@ private fun GoalsTabItem(
     modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
+    val colors = LocalAppColors.current
 
     Box(
         modifier = modifier
@@ -283,7 +294,7 @@ private fun GoalsTabItem(
             .padding(3.dp)
             .then(
                 if (isSelected)
-                    Modifier.background(CardBackground, RoundedCornerShape(12.dp))
+                    Modifier.background(colors.cardBackground, RoundedCornerShape(12.dp))
                 else
                     Modifier
             )
@@ -303,11 +314,11 @@ private fun GoalsTabItem(
                 text = label,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
-                color = TextPrimary
+                color = colors.textPrimary
             )
             Box(
                 modifier = Modifier
-                    .border(1.dp, Color(0x1A000000), RoundedCornerShape(8.dp))
+                    .border(1.dp, colors.cardBorder, RoundedCornerShape(8.dp))
                     .padding(horizontal = 6.dp, vertical = 2.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -315,7 +326,7 @@ private fun GoalsTabItem(
                     text = count.toString(),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
-                    color = TextPrimary
+                    color = colors.textPrimary
                 )
             }
         }
@@ -334,7 +345,7 @@ private fun GoalsTabContent(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = "Нет целей", color = SubtextColor, fontSize = 16.sp)
+            Text(text = "Нет целей", color = LocalAppColors.current.textSecondary, fontSize = 16.sp)
         }
         return
     }
@@ -359,11 +370,12 @@ private fun GoalCard(goal: Goal, onContributeClick: () -> Unit) {
         Color(android.graphics.Color.parseColor("#${goal.accentColor}"))
     }
 
+    val colors = LocalAppColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(CardBackground, RoundedCornerShape(14.dp))
-            .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+            .background(colors.cardBackground, RoundedCornerShape(14.dp))
+            .border(1.dp, colors.cardBorder, RoundedCornerShape(14.dp))
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -386,7 +398,7 @@ private fun GoalCard(goal: Goal, onContributeClick: () -> Unit) {
                     text = goal.title,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = TextPrimary
+                    color = colors.textPrimary
                 )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -395,13 +407,13 @@ private fun GoalCard(goal: Goal, onContributeClick: () -> Unit) {
                     Icon(
                         imageVector = Icons.Outlined.AccountBox,
                         contentDescription = null,
-                        tint = SubtextColor,
+                        tint = colors.textSecondary,
                         modifier = Modifier.size(12.dp)
                     )
                     Text(
                         text = "${goal.daysLeft} дней",
                         fontSize = 12.sp,
-                        color = SubtextColor
+                        color = colors.textSecondary
                     )
                 }
             }
@@ -415,7 +427,7 @@ private fun GoalCard(goal: Goal, onContributeClick: () -> Unit) {
                 Text(
                     text = "готово",
                     fontSize = 12.sp,
-                    color = SubtextColor,
+                    color = colors.textSecondary,
                     textAlign = TextAlign.Center
                 )
             }
@@ -427,7 +439,7 @@ private fun GoalCard(goal: Goal, onContributeClick: () -> Unit) {
                 .fillMaxWidth()
                 .height(8.dp)
                 .clip(RoundedCornerShape(50.dp))
-                .background(TrackColor)
+                .background(colors.inputBackground)
         ) {
             Box(
                 modifier = Modifier
@@ -448,13 +460,13 @@ private fun GoalCard(goal: Goal, onContributeClick: () -> Unit) {
             GoalStatColumn(
                 label      = "Осталось",
                 value      = formatAmountK(goal.remainingAmount),
-                valueColor = TextPrimary,
+                valueColor = colors.textPrimary,
                 modifier   = Modifier.weight(1f)
             )
             GoalStatColumn(
                 label      = "Цель",
                 value      = formatAmountK(goal.targetAmount),
-                valueColor = TextPrimary,
+                valueColor = colors.textPrimary,
                 modifier   = Modifier.weight(1f)
             )
         }
@@ -490,7 +502,7 @@ private fun GoalStatColumn(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
-        Text(text = label, fontSize = 12.sp, color = SubtextColor)
+        Text(text = label, fontSize = 12.sp, color = LocalAppColors.current.textSecondary)
         Text(
             text = value,
             fontSize = 14.sp,
@@ -513,7 +525,7 @@ private fun DebtsTabContent(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = "Нет долгов", color = SubtextColor, fontSize = 16.sp)
+            Text(text = "Нет долгов", color = LocalAppColors.current.textSecondary, fontSize = 16.sp)
         }
         return
     }
@@ -528,7 +540,7 @@ private fun DebtsTabContent(
                     text = "Активные",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = SectionHeaderColor,
+                    color = LocalAppColors.current.textPrimary,
                     modifier = Modifier.padding(horizontal = 4.dp)
                 )
             }
@@ -546,7 +558,7 @@ private fun DebtsTabContent(
                     text = "Погашенные",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = SectionHeaderColor,
+                    color = LocalAppColors.current.textPrimary,
                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
                 )
             }
@@ -570,11 +582,12 @@ private fun ActiveDebtCard(debt: Debt, onRepayClick: () -> Unit) {
     val amountColor   = if (isIOwe) DebtOweAmount       else DebtTheyAmount
     val iconTint      = if (isIOwe) DebtOweAmount       else DebtTheyAmount
 
+    val colors = LocalAppColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(CardBackground, RoundedCornerShape(14.dp))
-            .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+            .background(colors.cardBackground, RoundedCornerShape(14.dp))
+            .border(1.dp, colors.cardBorder, RoundedCornerShape(14.dp))
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -606,7 +619,7 @@ private fun ActiveDebtCard(debt: Debt, onRepayClick: () -> Unit) {
                     text = debt.personName,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = TextPrimary
+                    color = colors.textPrimary
                 )
                 Box(
                     modifier = Modifier
@@ -632,7 +645,7 @@ private fun ActiveDebtCard(debt: Debt, onRepayClick: () -> Unit) {
             )
         }
 
-        HorizontalDivider(color = DividerColor, thickness = 1.dp)
+        HorizontalDivider(color = colors.cardBorder, thickness = 1.dp)
 
         // Срок возврата + кнопка «Погасить»
         Row(
@@ -641,12 +654,12 @@ private fun ActiveDebtCard(debt: Debt, onRepayClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(text = "Срок возврата", fontSize = 12.sp, color = SubtextColor)
+                Text(text = "Срок возврата", fontSize = 12.sp, color = colors.textSecondary)
                 Text(
                     text = debt.dueDate,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color = TextPrimary
+                    color = colors.textPrimary
                 )
             }
 
@@ -654,14 +667,14 @@ private fun ActiveDebtCard(debt: Debt, onRepayClick: () -> Unit) {
                 onClick = onRepayClick,
                 modifier = Modifier.height(32.dp),
                 shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, CardBorder),
+                border = BorderStroke(1.dp, colors.cardBorder),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                colors = ButtonDefaults.outlinedButtonColors(containerColor = CardBackground)
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = colors.cardBackground)
             ) {
                 Icon(
                     imageVector = Icons.Outlined.CheckCircle,
                     contentDescription = null,
-                    tint = TextPrimary,
+                    tint = colors.textPrimary,
                     modifier = Modifier.size(12.dp)
                 )
                 Spacer(Modifier.width(6.dp))
@@ -669,7 +682,7 @@ private fun ActiveDebtCard(debt: Debt, onRepayClick: () -> Unit) {
                     text = "Погасить",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
-                    color = TextPrimary
+                    color = colors.textPrimary
                 )
             }
         }
@@ -678,12 +691,13 @@ private fun ActiveDebtCard(debt: Debt, onRepayClick: () -> Unit) {
 
 @Composable
 private fun PaidDebtCard(debt: Debt) {
+    val colors = LocalAppColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .alpha(0.6f)
-            .background(CardBackground, RoundedCornerShape(14.dp))
-            .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+            .background(colors.cardBackground, RoundedCornerShape(14.dp))
+            .border(1.dp, colors.cardBorder, RoundedCornerShape(14.dp))
             .padding(horizontal = 16.dp, vertical = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -691,7 +705,7 @@ private fun PaidDebtCard(debt: Debt) {
         Icon(
             imageVector = Icons.Outlined.CheckCircle,
             contentDescription = null,
-            tint = SubtextColor,
+            tint = colors.textSecondary,
             modifier = Modifier.size(20.dp)
         )
         Column(modifier = Modifier.weight(1f)) {
@@ -699,19 +713,19 @@ private fun PaidDebtCard(debt: Debt) {
                 text = debt.personName,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
-                color = TextPrimary
+                color = colors.textPrimary
             )
             Text(
                 text = "Возвращено",
                 fontSize = 12.sp,
-                color = SubtextColor
+                color = colors.textSecondary
             )
         }
         Text(
             text = formatAmountK(debt.amount),
             fontSize = 16.sp,
             fontWeight = FontWeight.SemiBold,
-            color = SectionHeaderColor
+            color = colors.textPrimary
         )
     }
 }

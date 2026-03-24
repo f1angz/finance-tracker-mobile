@@ -10,8 +10,8 @@ data class Goal(
     val daysLeft: Int,
     val savedAmount: Double,
     val targetAmount: Double,
-    /** Цвет акцента в hex без '#', например "3B82F6" */
-    val accentColor: String
+    /** Цвет акцента в hex без '#', например "3B82F6". Может отсутствовать в ответе бека. */
+    val accentColor: String?
 ) {
     val remainingAmount: Double
         get() = (targetAmount - savedAmount).coerceAtLeast(0.0)

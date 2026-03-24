@@ -22,6 +22,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import mobile.tracker.finance.data.models.Category
 import mobile.tracker.finance.data.models.CategoryType
+import mobile.tracker.finance.ui.theme.LocalAppColors
+import mobile.tracker.finance.ui.theme.PrimaryBlue
 import java.util.UUID
 
 private val paletteColors = listOf(
@@ -68,10 +70,11 @@ fun AddCategoryDialog(
     var typeExpanded by remember { mutableStateOf(false) }
     var iconExpanded by remember { mutableStateOf(false) }
 
+    val colors = LocalAppColors.current
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(10.dp),
-            color = Color.White,
+            color = colors.cardBackground,
             shadowElevation = 10.dp
         ) {
             Box(modifier = Modifier.fillMaxWidth()) {
@@ -86,7 +89,7 @@ fun AddCategoryDialog(
                         text = "Добавить категорию",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF0A0A0A),
+                        color = colors.textPrimary,
                         textAlign = TextAlign.Center,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -102,17 +105,19 @@ fun AddCategoryDialog(
                             placeholder = {
                                 Text(
                                     text = "Название категории",
-                                    color = Color(0xFF717182),
+                                    color = colors.textSecondary,
                                     fontSize = 16.sp
                                 )
                             },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(8.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                unfocusedContainerColor = Color(0xFFF3F3F5),
-                                focusedContainerColor = Color(0xFFF3F3F5),
+                                unfocusedContainerColor = colors.inputBackground,
+                                focusedContainerColor = colors.inputBackground,
                                 unfocusedBorderColor = Color.Transparent,
-                                focusedBorderColor = Color(0xFF155DFC)
+                                focusedBorderColor = PrimaryBlue,
+                                unfocusedTextColor = colors.textPrimary,
+                                focusedTextColor = colors.textPrimary
                             ),
                             singleLine = true
                         )
@@ -129,7 +134,7 @@ fun AddCategoryDialog(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .menuAnchor()
-                                    .background(Color(0xFFF3F3F5), RoundedCornerShape(8.dp))
+                                    .background(colors.inputBackground, RoundedCornerShape(8.dp))
                                     .padding(horizontal = 13.dp, vertical = 10.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
@@ -138,23 +143,23 @@ fun AddCategoryDialog(
                                     text = selectedType.label,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF0A0A0A)
+                                    color = colors.textPrimary
                                 )
                                 Icon(
                                     imageVector = Icons.Default.KeyboardArrowDown,
                                     contentDescription = null,
-                                    tint = Color(0xFF0A0A0A),
+                                    tint = colors.textPrimary,
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
                             ExposedDropdownMenu(
                                 expanded = typeExpanded,
                                 onDismissRequest = { typeExpanded = false },
-                                modifier = Modifier.background(Color.White)
+                                modifier = Modifier.background(colors.cardBackground)
                             ) {
                                 CategoryType.values().forEach { type ->
                                     DropdownMenuItem(
-                                        text = { Text(type.label) },
+                                        text = { Text(type.label, color = colors.textPrimary) },
                                         onClick = {
                                             selectedType = type
                                             typeExpanded = false
@@ -176,7 +181,7 @@ fun AddCategoryDialog(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .menuAnchor()
-                                    .background(Color(0xFFF3F3F5), RoundedCornerShape(8.dp))
+                                    .background(colors.inputBackground, RoundedCornerShape(8.dp))
                                     .padding(horizontal = 13.dp, vertical = 10.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
@@ -185,23 +190,23 @@ fun AddCategoryDialog(
                                     text = selectedIcon.displayName,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF0A0A0A)
+                                    color = colors.textPrimary
                                 )
                                 Icon(
                                     imageVector = Icons.Default.KeyboardArrowDown,
                                     contentDescription = null,
-                                    tint = Color(0xFF0A0A0A),
+                                    tint = colors.textPrimary,
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
                             ExposedDropdownMenu(
                                 expanded = iconExpanded,
                                 onDismissRequest = { iconExpanded = false },
-                                modifier = Modifier.background(Color.White)
+                                modifier = Modifier.background(colors.cardBackground)
                             ) {
                                 iconOptions.forEach { option ->
                                     DropdownMenuItem(
-                                        text = { Text(option.displayName) },
+                                        text = { Text(option.displayName, color = colors.textPrimary) },
                                         onClick = {
                                             selectedIcon = option
                                             iconExpanded = false
@@ -225,7 +230,7 @@ fun AddCategoryDialog(
                                         .background(color)
                                         .then(
                                             if (isSelected) Modifier.border(
-                                                3.dp, Color.White, RoundedCornerShape(10.dp)
+                                                3.dp, colors.cardBackground, RoundedCornerShape(10.dp)
                                             ) else Modifier
                                         )
                                         .clickable(
@@ -251,7 +256,7 @@ fun AddCategoryDialog(
                                 .height(36.dp),
                             shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = Color(0xFF0A0A0A)
+                                contentColor = colors.textPrimary
                             )
                         ) {
                             Text(
@@ -267,7 +272,7 @@ fun AddCategoryDialog(
                                         Category(
                                             id = UUID.randomUUID().toString(),
                                             name = name.trim(),
-                                            slug = selectedIcon.slug,
+                                            slug = "${selectedIcon.slug}:${UUID.randomUUID().toString().take(8)}",
                                             operationsCount = 0,
                                             totalAmount = 0.0,
                                             type = selectedType
@@ -281,7 +286,7 @@ fun AddCategoryDialog(
                                 .height(36.dp),
                             shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF030213),
+                                containerColor = PrimaryBlue,
                                 contentColor = Color.White
                             )
                         ) {
@@ -305,7 +310,7 @@ fun AddCategoryDialog(
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Закрыть",
-                        tint = Color(0xFF0A0A0A).copy(alpha = 0.7f),
+                        tint = colors.textSecondary,
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -320,6 +325,6 @@ private fun DialogFieldLabel(text: String) {
         text = text,
         fontSize = 14.sp,
         fontWeight = FontWeight.Medium,
-        color = Color(0xFF0A0A0A)
+        color = LocalAppColors.current.textPrimary
     )
 }

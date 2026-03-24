@@ -56,7 +56,7 @@ fun BottomNavBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(CardBackground)
+            .background(LocalAppColors.current.cardBackground)
             .padding(vertical = 8.dp, horizontal = 16.dp),
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically

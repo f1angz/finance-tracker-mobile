@@ -10,12 +10,12 @@ interface FinanceRepository {
     /**
      * Получить статистику финансов
      */
-    suspend fun getFinanceStats(): Result<FinanceStats>
+    suspend fun getFinanceStats(month: String? = null): Result<FinanceStats>
 
     /**
      * Получить расходы по категориям
      */
-    suspend fun getCategoryExpenses(): Result<List<CategoryExpense>>
+    suspend fun getCategoryExpenses(month: String? = null): Result<List<CategoryExpense>>
 
     /**
      * Получить статистику по месяцам
@@ -42,4 +42,9 @@ interface FinanceRepository {
      * Добавить новую транзакцию
      */
     suspend fun addTransaction(transaction: Transaction)
+
+    /**
+     * Удалить транзакцию по ID
+     */
+    suspend fun deleteTransaction(id: String)
 }

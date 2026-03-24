@@ -10,10 +10,10 @@ import kotlinx.coroutines.launch
 import mobile.tracker.finance.data.models.Category
 import mobile.tracker.finance.data.models.CategoryFilter
 import mobile.tracker.finance.data.models.Transaction
+import mobile.tracker.finance.data.repository.ApiCategoryRepository
+import mobile.tracker.finance.data.repository.ApiFinanceRepository
 import mobile.tracker.finance.data.repository.CategoryRepository
 import mobile.tracker.finance.data.repository.FinanceRepository
-import mobile.tracker.finance.data.repository.MockCategoryRepository
-import mobile.tracker.finance.data.repository.MockFinanceRepository
 import mobile.tracker.finance.utils.Result
 
 data class CategoriesUiState(
@@ -25,14 +25,13 @@ data class CategoriesUiState(
 )
 
 class CategoriesViewModel(
-    private val repository: CategoryRepository = MockCategoryRepository(),
-    private val financeRepository: FinanceRepository = MockFinanceRepository()
+    private val repository: CategoryRepository = ApiCategoryRepository(),
+    private val financeRepository: FinanceRepository = ApiFinanceRepository()
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CategoriesUiState())
     val uiState: StateFlow<CategoriesUiState> = _uiState.asStateFlow()
 
-    // Кэш всех категорий по фильтрам (избегаем повторных запросов)
     private val cachedByFilter = mutableMapOf<CategoryFilter, List<Category>>()
 
     init {
@@ -44,8 +43,7 @@ class CategoriesViewModel(
             _uiState.update { it.copy(isLoading = true, error = null) }
 
             var errorMessage: String? = null
-
-            for (filter in CategoryFilter.values()) {
+            for (filter in CategoryFilter.entries) {
                 when (val result = repository.getCategories(filter)) {
                     is Result.Success -> cachedByFilter[filter] = result.data
                     is Result.Error   -> errorMessage = result.message
@@ -53,9 +51,7 @@ class CategoriesViewModel(
                 }
             }
 
-            val counts = CategoryFilter.values().associateWith {
-                (cachedByFilter[it] ?: emptyList()).size
-            }
+            val counts = CategoryFilter.entries.associateWith { (cachedByFilter[it] ?: emptyList()).size }
             val activeFilter = _uiState.value.activeFilter
 
             _uiState.update {
@@ -70,9 +66,7 @@ class CategoriesViewModel(
     }
 
     fun addTransaction(transaction: Transaction) {
-        viewModelScope.launch {
-            financeRepository.addTransaction(transaction)
-        }
+        viewModelScope.launch { financeRepository.addTransaction(transaction) }
     }
 
     fun addCategory(category: Category) {
@@ -85,10 +79,7 @@ class CategoriesViewModel(
 
     fun onFilterChanged(filter: CategoryFilter) {
         _uiState.update {
-            it.copy(
-                activeFilter = filter,
-                categories = cachedByFilter[filter] ?: emptyList()
-            )
+            it.copy(activeFilter = filter, categories = cachedByFilter[filter] ?: emptyList())
         }
     }
 }

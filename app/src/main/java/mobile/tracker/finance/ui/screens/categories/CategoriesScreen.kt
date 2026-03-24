@@ -24,6 +24,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import mobile.tracker.finance.R
@@ -33,6 +35,7 @@ import mobile.tracker.finance.navigation.Screen
 import mobile.tracker.finance.ui.components.AddCategoryDialog
 import mobile.tracker.finance.ui.components.AddTransactionBottomSheet
 import mobile.tracker.finance.ui.components.BottomNavBar
+import mobile.tracker.finance.ui.screens.operations.DraftViewModel
 import mobile.tracker.finance.ui.theme.*
 import java.text.DecimalFormat
 
@@ -45,13 +48,18 @@ fun CategoriesScreen(
     viewModel: CategoriesViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val draftViewModel: DraftViewModel = viewModel(context as ViewModelStoreOwner)
+    val draft by draftViewModel.draft.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
     var showAddCategoryDialog by remember { mutableStateOf(false) }
 
     if (showAddDialog) {
         AddTransactionBottomSheet(
-            onDismiss = { showAddDialog = false },
-            onSave = { viewModel.addTransaction(it) }
+            onDismiss    = { showAddDialog = false },
+            onSave       = { viewModel.addTransaction(it); draftViewModel.clearDraft() },
+            initialDraft = draft,
+            onDraftSave  = draftViewModel::saveDraft
         )
     }
 
@@ -102,7 +110,7 @@ fun CategoriesScreen(
                 }
             )
         },
-        containerColor = BackgroundLight
+        containerColor = LocalAppColors.current.background
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -136,7 +144,7 @@ fun CategoriesScreen(
                     ) {
                         Text(
                             text = "Нет категорий",
-                            color = TextSecondary,
+                            color = LocalAppColors.current.textSecondary,
                             fontSize = 16.sp
                         )
                     }
@@ -163,10 +171,12 @@ fun CategoriesScreen(
 
 @Composable
 private fun CategoriesTopBar(onAddClick: () -> Unit) {
+    val colors = LocalAppColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(BackgroundLight)
+            .background(colors.background)
+            .statusBarsPadding()
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -179,14 +189,14 @@ private fun CategoriesTopBar(onAddClick: () -> Unit) {
                 Icon(
                     imageVector = Icons.Default.Menu,
                     contentDescription = "Меню",
-                    tint = TextPrimary
+                    tint = colors.textPrimary
                 )
             }
             Text(
                 text = "Категории",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextPrimary
+                color = colors.textPrimary
             )
         }
 
@@ -196,7 +206,7 @@ private fun CategoriesTopBar(onAddClick: () -> Unit) {
                     Icon(
                         imageVector = Icons.Default.Notifications,
                         contentDescription = "Уведомления",
-                        tint = TextPrimary
+                        tint = colors.textPrimary
                     )
                 }
                 Box(
@@ -263,16 +273,17 @@ private fun CategoryFilterChip(
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
+    val colors = LocalAppColors.current
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .clip(RoundedCornerShape(20.dp))
-            .background(if (isSelected) White else Color.Transparent)
+            .background(if (isSelected) colors.cardBackground else Color.Transparent)
             .then(
                 if (isSelected) Modifier.border(
                     width = 1.dp,
-                    color = Color(0xFFE5E7EB),
+                    color = colors.cardBorder,
                     shape = RoundedCornerShape(20.dp)
                 ) else Modifier
             )
@@ -287,12 +298,12 @@ private fun CategoryFilterChip(
             text = label,
             fontSize = 14.sp,
             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (isSelected) TextPrimary else TextSecondary
+            color = if (isSelected) colors.textPrimary else colors.textSecondary
         )
         Spacer(Modifier.width(6.dp))
         Box(
             modifier = Modifier
-                .background(Color(0xFFE5E7EB), RoundedCornerShape(10.dp))
+                .background(colors.inputBackground, RoundedCornerShape(10.dp))
                 .padding(horizontal = 6.dp, vertical = 2.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -300,7 +311,7 @@ private fun CategoryFilterChip(
                 text = count.toString(),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
-                color = TextSecondary
+                color = colors.textSecondary
             )
         }
     }
@@ -328,10 +339,11 @@ private fun CategoryCard(category: Category) {
     val formatter = DecimalFormat("#,###")
     val amountFormatted = formatter.format(category.totalAmount.toLong())
 
+    val colors = LocalAppColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(CardBackground, RoundedCornerShape(16.dp))
+            .background(colors.cardBackground, RoundedCornerShape(16.dp))
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -359,13 +371,13 @@ private fun CategoryCard(category: Category) {
                 text = category.name,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = TextPrimary
+                color = colors.textPrimary
             )
             Spacer(Modifier.height(4.dp))
             Text(
                 text = "${category.operationsCount} операций",
                 fontSize = 13.sp,
-                color = TextSecondary
+                color = colors.textSecondary
             )
         }
 
@@ -376,14 +388,14 @@ private fun CategoryCard(category: Category) {
             Text(
                 text = "Потрачено",
                 fontSize = 12.sp,
-                color = TextSecondary
+                color = colors.textSecondary
             )
             Spacer(Modifier.height(2.dp))
             Text(
                 text = "₽ $amountFormatted",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextPrimary
+                color = colors.textPrimary
             )
         }
     }
@@ -397,7 +409,9 @@ private data class CategoryIconConfig(
     val iconColor: Color
 )
 
-private fun categoryIconConfig(slug: String): CategoryIconConfig = when (slug) {
+private fun categoryIconConfig(slug: String): CategoryIconConfig {
+    val iconKey = slug.substringBefore(":")
+    return when (iconKey) {
     "products"      -> CategoryIconConfig(
         iconRes   = R.drawable.ic_cat_products,
         bgColor   = Color(0xFFEEF2FF),
@@ -443,4 +457,5 @@ private fun categoryIconConfig(slug: String): CategoryIconConfig = when (slug) {
         bgColor   = Color(0xFFF3F4F6),
         iconColor = Color(0xFF9CA3AF)
     )
+}
 }

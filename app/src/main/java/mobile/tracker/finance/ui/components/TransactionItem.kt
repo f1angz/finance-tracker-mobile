@@ -83,13 +83,13 @@ fun TransactionItem(
                     text = transaction.title,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color = TextPrimary
+                    color = LocalAppColors.current.textPrimary
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = transaction.date,
                     fontSize = 12.sp,
-                    color = TextSecondary
+                    color = LocalAppColors.current.textSecondary
                 )
             }
         }

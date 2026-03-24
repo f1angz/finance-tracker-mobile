@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -17,6 +19,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Error
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,6 +33,9 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import mobile.tracker.finance.data.models.AiHealthScore
@@ -38,7 +44,9 @@ import mobile.tracker.finance.data.models.AiTip
 import mobile.tracker.finance.data.models.ChatMessage
 import mobile.tracker.finance.data.models.InsightType
 import mobile.tracker.finance.navigation.Screen
+import mobile.tracker.finance.ui.components.AddTransactionBottomSheet
 import mobile.tracker.finance.ui.components.BottomNavBar
+import mobile.tracker.finance.ui.screens.operations.DraftViewModel
 import mobile.tracker.finance.ui.theme.*
 
 // ─── Цвета экрана ────────────────────────────────────────────────────────────
@@ -72,7 +80,7 @@ private val BodyText            = Color(0xFF364153)
 private val SubtextGray         = Color(0xFF6A7282)
 private val HeaderBorderColor   = Color(0xFFE5E7EB)
 
-// ─── Экран ───────────────────────────────────────────────────────────────────
+// Экран
 
 @Composable
 fun AiAssistantScreen(
@@ -81,9 +89,22 @@ fun AiAssistantScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val selectedTab by viewModel.selectedTab.collectAsState()
+    val context = LocalContext.current
+    val draftViewModel: DraftViewModel = viewModel(context as ViewModelStoreOwner)
+    val draft by draftViewModel.draft.collectAsState()
+    var showAddDialog by remember { mutableStateOf(false) }
+
+    if (showAddDialog) {
+        AddTransactionBottomSheet(
+            onDismiss    = { showAddDialog = false },
+            onSave       = { viewModel.addTransaction(it); draftViewModel.clearDraft() },
+            initialDraft = draft,
+            onDraftSave  = draftViewModel::saveDraft
+        )
+    }
 
     Scaffold(
-        topBar = { AiTopBar() },
+        topBar = { AiTopBar(onAddClick = { showAddDialog = true }) },
         bottomBar = {
             BottomNavBar(
                 selectedTab = 3,
@@ -109,7 +130,7 @@ fun AiAssistantScreen(
                 }
             )
         },
-        containerColor = Color(0xFFF9FAFB)
+        containerColor = LocalAppColors.current.background
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -132,11 +153,16 @@ fun AiAssistantScreen(
                 AiTab.INSIGHTS -> InsightsContent(
                     insights = uiState.insights,
                     isLoading = uiState.isLoadingInsights,
+                    isRefreshing = uiState.isRefreshing,
+                    onRefresh = viewModel::refresh,
                     modifier = Modifier.weight(1f).fillMaxWidth()
                 )
                 AiTab.TIPS -> TipsContent(
                     tips = uiState.tips,
                     isLoading = uiState.isLoadingTips,
+                    isRefreshing = uiState.isRefreshing,
+                    onRefresh = viewModel::refresh,
+                    onTipClick = viewModel::openTipDetail,
                     modifier = Modifier.weight(1f).fillMaxWidth()
                 )
                 AiTab.CHAT -> ChatContent(
@@ -157,16 +183,28 @@ fun AiAssistantScreen(
             ) { Text(text = error) }
         }
     }
+
+    val selectedTip = uiState.selectedTip
+    if (selectedTip != null) {
+        TipDetailBottomSheet(
+            tip = selectedTip,
+            detail = uiState.tipDetail,
+            isLoading = uiState.isLoadingTipDetail,
+            onDismiss = viewModel::closeTipDetail
+        )
+    }
 }
 
-// ─── Top Bar ─────────────────────────────────────────────────────────────────
+// Верхняя панель
 
 @Composable
-private fun AiTopBar() {
+private fun AiTopBar(onAddClick: () -> Unit) {
+    val colors = LocalAppColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(CardBackground)
+            .background(colors.cardBackground)
+            .statusBarsPadding()
     ) {
         Row(
             modifier = Modifier
@@ -183,14 +221,14 @@ private fun AiTopBar() {
                     Icon(
                         imageVector = Icons.Default.Menu,
                         contentDescription = "Меню",
-                        tint = TextPrimary
+                        tint = colors.textPrimary
                     )
                 }
                 Text(
                     text = "ИИ-Помощник",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextPrimary
+                    color = colors.textPrimary
                 )
             }
 
@@ -200,7 +238,7 @@ private fun AiTopBar() {
                         Icon(
                             imageVector = Icons.Default.Notifications,
                             contentDescription = "Уведомления",
-                            tint = TextPrimary
+                            tint = colors.textPrimary
                         )
                     }
                     Box(
@@ -212,7 +250,7 @@ private fun AiTopBar() {
                     )
                 }
                 IconButton(
-                    onClick = { /* TODO: новый диалог */ },
+                    onClick = onAddClick,
                     modifier = Modifier.background(PrimaryBlue, CircleShape)
                 ) {
                     Icon(
@@ -223,12 +261,11 @@ private fun AiTopBar() {
                 }
             }
         }
-        HorizontalDivider(color = HeaderBorderColor, thickness = 1.dp)
+        HorizontalDivider(color = colors.cardBorder, thickness = 1.dp)
     }
 }
 
-// ─── Info Card ───────────────────────────────────────────────────────────────
-
+// Информационная карточка
 @Composable
 private fun AiInfoCard(healthScore: AiHealthScore?) {
     val gradient = Brush.linearGradient(
@@ -361,7 +398,7 @@ private fun MetricBox(value: String, label: String, modifier: Modifier = Modifie
     }
 }
 
-// ─── Tab Bar ─────────────────────────────────────────────────────────────────
+// Вкладки на экране
 
 @Composable
 private fun AiTabBar(
@@ -375,11 +412,12 @@ private fun AiTabBar(
         AiTab.CHAT to "Чат"
     )
 
+    val colors = LocalAppColors.current
     Row(
         modifier = modifier
             .fillMaxWidth()
             .height(36.dp)
-            .background(TabBarBg, RoundedCornerShape(14.dp))
+            .background(colors.inputBackground, RoundedCornerShape(14.dp))
             .padding(3.dp)
     ) {
         tabs.forEach { (tab, label) ->
@@ -389,7 +427,7 @@ private fun AiTabBar(
                     .weight(1f)
                     .fillMaxHeight()
                     .background(
-                        color = if (isSelected) CardBackground else Color.Transparent,
+                        color = if (isSelected) colors.cardBackground else Color.Transparent,
                         shape = RoundedCornerShape(12.dp)
                     )
                     .clip(RoundedCornerShape(12.dp))
@@ -403,73 +441,90 @@ private fun AiTabBar(
                     text = label,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
-                    color = TitleText
+                    color = colors.textPrimary
                 )
             }
         }
     }
 }
 
-// ─── Insights Content ────────────────────────────────────────────────────────
+// Вкладка "Инсайты"
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun InsightsContent(
     insights: List<AiInsight>,
     isLoading: Boolean,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (isLoading) {
-        Box(modifier = modifier, contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = AiPurple)
-        }
-        return
-    }
-    if (insights.isEmpty()) {
-        Box(modifier = modifier, contentAlignment = Alignment.Center) {
-            Text("Нет инсайтов", color = SubtextGray, fontSize = 16.sp)
-        }
-        return
-    }
-    LazyColumn(
-        modifier = modifier,
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        modifier = modifier
     ) {
-        items(insights, key = { it.id }) { insight ->
-            InsightCard(insight = insight)
+        if (isLoading) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = AiPurple)
+            }
+        } else if (insights.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("Нет инсайтов", color = LocalAppColors.current.textSecondary, fontSize = 16.sp)
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(insights, key = { it.id }) { insight ->
+                    InsightCard(insight = insight)
+                }
+                item { Spacer(Modifier.height(8.dp)) }
+            }
         }
-        item { Spacer(Modifier.height(8.dp)) }
     }
 }
 
-// ─── Tips Content ─────────────────────────────────────────────────────────────
+// Вкладка "Советы"
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TipsContent(
     tips: List<AiTip>,
     isLoading: Boolean,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
+    onTipClick: (AiTip) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (isLoading) {
-        Box(modifier = modifier, contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = AiPurple)
-        }
-        return
-    }
-    LazyColumn(
-        modifier = modifier,
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        modifier = modifier
     ) {
-        items(tips, key = { it.id }) { tip ->
-            TipCard(tip = tip)
+        if (isLoading) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = AiPurple)
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(tips, key = { it.id }) { tip ->
+                    TipCard(tip = tip, onClick = { onTipClick(tip) })
+                }
+                item { TipPromoCard() }
+                item { Spacer(Modifier.height(8.dp)) }
+            }
         }
-        item { TipPromoCard() }
-        item { Spacer(Modifier.height(8.dp)) }
     }
 }
 
-// ─── Chat Content ────────────────────────────────────────────────────────────
+// Вкладка "Чат"
 
 @Composable
 private fun ChatContent(
@@ -506,11 +561,12 @@ private fun ChatContent(
         }
 
         // Поле ввода
-        HorizontalDivider(color = HeaderBorderColor, thickness = 1.dp)
+        val colors = LocalAppColors.current
+        HorizontalDivider(color = colors.cardBorder, thickness = 1.dp)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(CardBackground)
+                .background(colors.cardBackground)
                 .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -522,7 +578,7 @@ private fun ChatContent(
                 placeholder = {
                     Text(
                         text = "Спросите что-нибудь...",
-                        color = TextSecondary,
+                        color = colors.textSecondary,
                         fontSize = 14.sp
                     )
                 },
@@ -532,9 +588,9 @@ private fun ChatContent(
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = AiPurple,
-                    unfocusedBorderColor = HeaderBorderColor,
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White
+                    unfocusedBorderColor = colors.cardBorder,
+                    focusedContainerColor = colors.cardBackground,
+                    unfocusedContainerColor = colors.cardBackground
                 )
             )
             IconButton(
@@ -565,11 +621,12 @@ private fun ChatBubble(message: ChatMessage) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
     ) {
+        val colors = LocalAppColors.current
         Box(
             modifier = Modifier
                 .widthIn(max = 280.dp)
                 .background(
-                    color = if (isUser) AiPurple else CardBackground,
+                    color = if (isUser) AiPurple else colors.cardBackground,
                     shape = RoundedCornerShape(
                         topStart = 16.dp,
                         topEnd = 16.dp,
@@ -580,7 +637,7 @@ private fun ChatBubble(message: ChatMessage) {
                 .then(
                     if (!isUser) Modifier.border(
                         width = 1.dp,
-                        color = Color(0x1A000000),
+                        color = colors.cardBorder,
                         shape = RoundedCornerShape(
                             topStart = 16.dp, topEnd = 16.dp, bottomStart = 4.dp, bottomEnd = 16.dp
                         )
@@ -591,7 +648,7 @@ private fun ChatBubble(message: ChatMessage) {
             Text(
                 text = message.content,
                 fontSize = 14.sp,
-                color = if (isUser) Color.White else TitleText,
+                color = if (isUser) Color.White else colors.textPrimary,
                 lineHeight = 20.sp
             )
         }
@@ -600,14 +657,15 @@ private fun ChatBubble(message: ChatMessage) {
 
 @Composable
 private fun AiTypingIndicator() {
+    val colors = LocalAppColors.current
     Row(
         modifier = Modifier
             .background(
-                CardBackground,
+                colors.cardBackground,
                 RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 4.dp, bottomEnd = 16.dp)
             )
             .border(
-                1.dp, Color(0x1A000000),
+                1.dp, colors.cardBorder,
                 RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 4.dp, bottomEnd = 16.dp)
             )
             .padding(horizontal = 14.dp, vertical = 10.dp),
@@ -619,11 +677,11 @@ private fun AiTypingIndicator() {
             color = AiPurple,
             strokeWidth = 2.dp
         )
-        Text(text = "ИИ печатает...", fontSize = 12.sp, color = SubtextGray)
+        Text(text = "ИИ печатает...", fontSize = 12.sp, color = colors.textSecondary)
     }
 }
 
-// ─── Insight Card ────────────────────────────────────────────────────────────
+// Карточка "Инсайты"
 
 private data class InsightColors(
     val bg: Color, val border: Color, val iconBg: Color, val icon: Color
@@ -689,7 +747,7 @@ private fun InsightCard(insight: AiInsight, modifier: Modifier = Modifier) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xB3FFFFFF), RoundedCornerShape(10.dp))
+                .background(Color(0x1AFFFFFF), RoundedCornerShape(10.dp))
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -703,13 +761,13 @@ private fun InsightCard(insight: AiInsight, modifier: Modifier = Modifier) {
             Text(
                 text = insight.recommendation,
                 fontSize = 12.sp,
-                color = TitleText
+                color = BodyText
             )
         }
     }
 }
 
-// ─── Tip Card ────────────────────────────────────────────────────────────────
+// Карточка "Советы"
 
 private val TipIconBg      = Color(0xFFFAF5FF)
 private val TipEffectBg    = Color(0xFFF0FDF4)
@@ -718,7 +776,7 @@ private val TipEffectText  = Color(0xFF008236)
 private val TipPromoBorder = Color(0xFFD1D5DC)
 
 @Composable
-private fun TipCard(tip: AiTip, modifier: Modifier = Modifier) {
+private fun TipCard(tip: AiTip, onClick: () -> Unit = {}, modifier: Modifier = Modifier) {
     val icon: ImageVector = when (tip.category) {
         "Оптимизация" -> Icons.Default.PhoneAndroid
         "Доход"       -> Icons.Default.TrendingUp
@@ -730,11 +788,17 @@ private fun TipCard(tip: AiTip, modifier: Modifier = Modifier) {
         else          -> Icons.Default.AutoAwesome
     }
 
+    val colors = LocalAppColors.current
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(CardBackground, RoundedCornerShape(14.dp))
-            .border(1.dp, Color(0x1A000000), RoundedCornerShape(14.dp))
+            .background(colors.cardBackground, RoundedCornerShape(14.dp))
+            .border(1.dp, colors.cardBorder, RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { onClick() }
             .padding(start = 17.dp, top = 17.dp, bottom = 17.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -754,63 +818,57 @@ private fun TipCard(tip: AiTip, modifier: Modifier = Modifier) {
             )
         }
 
-        // Текст: категория/эффект + заголовок
+        // Текст: категория + заголовок + эффект
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = tip.category,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = SubtextGray
-                )
-                Box(
-                    modifier = Modifier
-                        .background(TipEffectBg, RoundedCornerShape(8.dp))
-                        .border(1.dp, TipEffectBorder, RoundedCornerShape(8.dp))
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                ) {
-                    Text(
-                        text = tip.effect,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = TipEffectText
-                    )
-                }
-            }
+            Text(
+                text = tip.category,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = colors.textSecondary
+            )
             Text(
                 text = tip.title,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
-                color = TitleText
+                color = colors.textPrimary
             )
+            Box(
+                modifier = Modifier
+                    .background(TipEffectBg, RoundedCornerShape(8.dp))
+                    .border(1.dp, TipEffectBorder, RoundedCornerShape(8.dp))
+                    .padding(horizontal = 8.dp, vertical = 3.dp)
+            ) {
+                Text(
+                    text = tip.effect,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = TipEffectText
+                )
+            }
         }
 
         // Стрелка вправо
         Icon(
             imageVector = Icons.Default.ChevronRight,
             contentDescription = null,
-            tint = SubtextGray,
+            tint = colors.textSecondary,
             modifier = Modifier.size(20.dp)
         )
     }
 }
 
-// ─── Tip Promo Card ───────────────────────────────────────────────────────────
 
 @Composable
 private fun TipPromoCard() {
+    val colors = LocalAppColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(CardBackground, RoundedCornerShape(14.dp))
-            .border(1.dp, TipPromoBorder, RoundedCornerShape(14.dp))
+            .background(colors.cardBackground, RoundedCornerShape(14.dp))
+            .border(1.dp, colors.cardBorder, RoundedCornerShape(14.dp))
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -825,13 +883,13 @@ private fun TipPromoCard() {
             text = "Персональные рекомендации",
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
-            color = TitleText,
+            color = colors.textPrimary,
             textAlign = TextAlign.Center
         )
         Text(
             text = "Получайте умные советы на основе ваших данных",
             fontSize = 12.sp,
-            color = SubtextGray,
+            color = colors.textSecondary,
             textAlign = TextAlign.Center
         )
         Spacer(Modifier.height(4.dp))
@@ -850,6 +908,193 @@ private fun TipPromoCard() {
                 fontWeight = FontWeight.Medium,
                 color = Color.White
             )
+        }
+    }
+}
+
+// Модальное окно "Советы"
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TipDetailBottomSheet(
+    tip: AiTip,
+    detail: String?,
+    isLoading: Boolean,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    val maxSheetHeight = LocalConfiguration.current.screenHeightDp.dp * 0.82f
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = LocalAppColors.current.cardBackground,
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = maxSheetHeight)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .navigationBarsPadding()
+                .padding(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Серая плашка (категория) сверху, зелёная (эффект) под ней
+            val sheetColors = LocalAppColors.current
+            Box(
+                modifier = Modifier
+                    .background(sheetColors.inputBackground, RoundedCornerShape(8.dp))
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = tip.category,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = sheetColors.textSecondary
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .background(TipEffectBg, RoundedCornerShape(8.dp))
+                    .border(1.dp, TipEffectBorder, RoundedCornerShape(8.dp))
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = tip.effect,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = TipEffectText
+                )
+            }
+
+            // Заголовок
+            Text(
+                text = tip.title,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = sheetColors.textPrimary
+            )
+
+            HorizontalDivider(color = sheetColors.cardBorder)
+
+            // Детали от ИИ
+            if (isLoading) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.padding(vertical = 8.dp)
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = AiPurple,
+                        strokeWidth = 2.dp
+                    )
+                    Text(
+                        text = "ИИ готовит рекомендации...",
+                        fontSize = 14.sp,
+                        color = sheetColors.textSecondary
+                    )
+                }
+            } else if (detail != null) {
+                SimpleMarkdownText(
+                    text = detail,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                Text(
+                    text = "Не удалось загрузить детали. Попробуйте снова.",
+                    fontSize = 14.sp,
+                    color = sheetColors.textSecondary
+                )
+            }
+        }
+    }
+}
+
+// Упрощенный MarkDown
+
+@Composable
+private fun SimpleMarkdownText(text: String, modifier: Modifier = Modifier) {
+    val lines = text.split("\n")
+    val colors = LocalAppColors.current
+
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        lines.forEach { line ->
+            when {
+                line.isBlank() -> Spacer(Modifier.height(4.dp))
+
+                line.startsWith("### ") -> Text(
+                    text = parseBold(line.removePrefix("### ")),
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textPrimary,
+                    lineHeight = 22.sp
+                )
+
+                line.startsWith("## ") -> Text(
+                    text = parseBold(line.removePrefix("## ")),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.textPrimary,
+                    lineHeight = 24.sp
+                )
+
+                line.startsWith("# ") -> Text(
+                    text = parseBold(line.removePrefix("# ")),
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.textPrimary,
+                    lineHeight = 26.sp
+                )
+
+                line.startsWith("- ") || line.startsWith("* ") -> {
+                    val content = line.removePrefix("- ").removePrefix("* ")
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(start = 4.dp)
+                    ) {
+                        Text(
+                            text = "•",
+                            fontSize = 14.sp,
+                            color = AiPurple,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = parseBold(content),
+                            fontSize = 14.sp,
+                            color = colors.textSecondary,
+                            lineHeight = 22.sp,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+
+                else -> Text(
+                    text = parseBold(line),
+                    fontSize = 14.sp,
+                    color = colors.textSecondary,
+                    lineHeight = 22.sp
+                )
+            }
+        }
+    }
+}
+
+/** Парсит **bold** внутри строки → AnnotatedString с Bold span */
+private fun parseBold(input: String): androidx.compose.ui.text.AnnotatedString {
+    return androidx.compose.ui.text.buildAnnotatedString {
+        val parts = input.split("**")
+        parts.forEachIndexed { index, part ->
+            if (index % 2 == 1) {
+                pushStyle(androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Bold))
+                append(part)
+                pop()
+            } else {
+                append(part)
+            }
         }
     }
 }

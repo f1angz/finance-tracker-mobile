@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import mobile.tracker.finance.data.models.Transaction
 import mobile.tracker.finance.data.models.TransactionCategory
 import mobile.tracker.finance.data.models.TransactionType
+import mobile.tracker.finance.ui.screens.operations.TransactionDraft
 import mobile.tracker.finance.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -33,19 +34,59 @@ import java.util.*
 @Composable
 fun AddTransactionBottomSheet(
     onDismiss: () -> Unit,
-    onSave: (Transaction) -> Unit
+    onSave: (Transaction) -> Unit,
+    initialDraft: TransactionDraft? = null,
+    onDraftSave: ((TransactionDraft) -> Unit)? = null
 ) {
+
+    var selectedType by remember { mutableStateOf(initialDraft?.type ?: TransactionType.EXPENSE) }
+    var title by remember { mutableStateOf(initialDraft?.title ?: "") }
+    var amountText by remember { mutableStateOf(initialDraft?.amountText ?: "") }
+    var selectedCategory by remember { mutableStateOf<TransactionCategory?>(initialDraft?.category) }
+    var selectedDate by remember {
+        mutableStateOf(Calendar.getInstance().apply {
+            timeInMillis = initialDraft?.dateMillis ?: System.currentTimeMillis()
+        })
+    }
+    var comment by remember { mutableStateOf(initialDraft?.comment ?: "") }
+
+    fun buildDraft() = TransactionDraft(
+        type       = selectedType,
+        title      = title,
+        amountText = amountText,
+        category   = selectedCategory,
+        dateMillis = selectedDate.timeInMillis,
+        comment    = comment
+    )
+
+    fun handleDismiss() {
+        onDraftSave?.invoke(buildDraft())
+        onDismiss()
+    }
+
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { handleDismiss() },
         sheetState = sheetState,
-        containerColor = Color.White,
+        containerColor = LocalAppColors.current.cardBackground,
         dragHandle = null,
         shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
     ) {
         AddTransactionContent(
-            onClose = onDismiss,
-            onSave = { transaction ->
+            selectedType     = selectedType,
+            title            = title,
+            amountText       = amountText,
+            selectedCategory = selectedCategory,
+            selectedDate     = selectedDate,
+            comment          = comment,
+            onTypeChange     = { selectedType = it },
+            onTitleChange    = { title = it },
+            onAmountChange   = { amountText = it },
+            onCategoryChange = { selectedCategory = it },
+            onDateChange     = { selectedDate = it },
+            onCommentChange  = { comment = it },
+            onClose          = { handleDismiss() },
+            onSave           = { transaction ->
                 onSave(transaction)
                 onDismiss()
             }
@@ -56,22 +97,29 @@ fun AddTransactionBottomSheet(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddTransactionContent(
+    selectedType: TransactionType,
+    title: String,
+    amountText: String,
+    selectedCategory: TransactionCategory?,
+    selectedDate: Calendar,
+    comment: String,
+    onTypeChange: (TransactionType) -> Unit,
+    onTitleChange: (String) -> Unit,
+    onAmountChange: (String) -> Unit,
+    onCategoryChange: (TransactionCategory?) -> Unit,
+    onDateChange: (Calendar) -> Unit,
+    onCommentChange: (String) -> Unit,
     onClose: () -> Unit,
     onSave: (Transaction) -> Unit
 ) {
     val context = LocalContext.current
-
-    var selectedType by remember { mutableStateOf(TransactionType.EXPENSE) }
-    var amountText by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf<TransactionCategory?>(null) }
+    val colors = LocalAppColors.current
     var categoryExpanded by remember { mutableStateOf(false) }
-    var selectedDate by remember { mutableStateOf(Calendar.getInstance()) }
-    var comment by remember { mutableStateOf("") }
 
     val dateFormatter = remember { SimpleDateFormat("dd MMMM yyyy", Locale("ru")) }
     val displayDate = remember(selectedDate) { dateFormatter.format(selectedDate.time) }
 
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.93f)) {
         // ── Header ──
         Row(
             modifier = Modifier
@@ -84,7 +132,7 @@ private fun AddTransactionContent(
                 text = "Новая операция",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = TextPrimary
+                color = colors.textPrimary
             )
             IconButton(
                 onClick = onClose,
@@ -93,16 +141,17 @@ private fun AddTransactionContent(
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = "Закрыть",
-                    tint = TextSecondary
+                    tint = colors.textSecondary
                 )
             }
         }
-        HorizontalDivider(color = Color(0xFFE5E7EB))
+        HorizontalDivider(color = colors.cardBorder)
 
         // ── Scrollable form ──
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .weight(1f)
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
@@ -121,7 +170,7 @@ private fun AddTransactionContent(
                     selectedIconTint = Color(0xFFE7000B),
                     selectedTextColor = Color(0xFF82181A),
                     modifier = Modifier.weight(1f),
-                    onClick = { selectedType = TransactionType.EXPENSE }
+                    onClick = { onTypeChange(TransactionType.EXPENSE) }
                 )
                 TransactionTypeButton(
                     label = "Доход",
@@ -132,7 +181,41 @@ private fun AddTransactionContent(
                     selectedIconTint = Color(0xFF00A63E),
                     selectedTextColor = Color(0xFF008236),
                     modifier = Modifier.weight(1f),
-                    onClick = { selectedType = TransactionType.INCOME }
+                    onClick = { onTypeChange(TransactionType.INCOME) }
+                )
+            }
+
+            // Title field
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "Название",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = colors.textPrimary
+                )
+                TextField(
+                    value = title,
+                    onValueChange = onTitleChange,
+                    placeholder = {
+                        Text(
+                            text = "Введите название операции",
+                            fontSize = 16.sp,
+                            color = colors.textSecondary
+                        )
+                    },
+                    singleLine = true,
+                    colors = TextFieldDefaults.colors(
+                        unfocusedContainerColor = colors.inputBackground,
+                        focusedContainerColor = colors.inputBackground,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedTextColor = colors.textPrimary,
+                        focusedTextColor = colors.textPrimary
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
                 )
             }
 
@@ -142,28 +225,30 @@ private fun AddTransactionContent(
                     text = "Сумма (₽)",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color = TextPrimary
+                    color = colors.textPrimary
                 )
                 TextField(
                     value = amountText,
                     onValueChange = { v ->
-                        if (v.isEmpty() || v.matches(Regex("^\\d*\\.?\\d*$"))) amountText = v
+                        if (v.isEmpty() || v.matches(Regex("^\\d*\\.?\\d*$"))) onAmountChange(v)
                     },
                     placeholder = {
                         Text(
                             text = "0",
                             fontSize = 24.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF717182)
+                            color = colors.textSecondary
                         )
                     },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     colors = TextFieldDefaults.colors(
-                        unfocusedContainerColor = InputBackground,
-                        focusedContainerColor = InputBackground,
+                        unfocusedContainerColor = colors.inputBackground,
+                        focusedContainerColor = colors.inputBackground,
                         unfocusedIndicatorColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedTextColor = colors.textPrimary,
+                        focusedTextColor = colors.textPrimary
                     ),
                     textStyle = LocalTextStyle.current.copy(
                         fontSize = 24.sp,
@@ -183,8 +268,8 @@ private fun AddTransactionContent(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .background(Color(0xFFF3F4F6), RoundedCornerShape(10.dp))
-                                .clickable { amountText = value.toString() }
+                                .background(colors.inputBackground, RoundedCornerShape(10.dp))
+                                .clickable { onAmountChange(value.toString()) }
                                 .padding(vertical = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -192,7 +277,7 @@ private fun AddTransactionContent(
                                 text = label,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = TextPrimary
+                                color = colors.textPrimary
                             )
                         }
                     }
@@ -205,7 +290,7 @@ private fun AddTransactionContent(
                     text = "Категория",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color = TextPrimary
+                    color = colors.textPrimary
                 )
                 ExposedDropdownMenuBox(
                     expanded = categoryExpanded,
@@ -215,7 +300,7 @@ private fun AddTransactionContent(
                         modifier = Modifier
                             .fillMaxWidth()
                             .menuAnchor()
-                            .background(InputBackground, RoundedCornerShape(8.dp))
+                            .background(colors.inputBackground, RoundedCornerShape(8.dp))
                             .padding(horizontal = 13.dp, vertical = 10.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
@@ -224,25 +309,25 @@ private fun AddTransactionContent(
                             text = selectedCategory?.displayName ?: "Выберите категорию",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
-                            color = if (selectedCategory != null) TextPrimary else Color(0xFF717182)
+                            color = if (selectedCategory != null) colors.textPrimary else colors.textSecondary
                         )
                         Icon(
                             imageVector = Icons.Default.KeyboardArrowDown,
                             contentDescription = null,
-                            tint = TextSecondary,
+                            tint = colors.textSecondary,
                             modifier = Modifier.size(16.dp)
                         )
                     }
                     ExposedDropdownMenu(
                         expanded = categoryExpanded,
                         onDismissRequest = { categoryExpanded = false },
-                        modifier = Modifier.background(Color.White)
+                        modifier = Modifier.background(colors.cardBackground)
                     ) {
                         TransactionCategory.entries.forEach { category ->
                             DropdownMenuItem(
                                 text = { Text(text = category.displayName) },
                                 onClick = {
-                                    selectedCategory = category
+                                    onCategoryChange(category)
                                     categoryExpanded = false
                                 }
                             )
@@ -257,18 +342,18 @@ private fun AddTransactionContent(
                     text = "Дата",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color = TextPrimary
+                    color = colors.textPrimary
                 )
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .border(1.dp, Color(0x1A000000), RoundedCornerShape(8.dp))
+                        .border(1.dp, colors.cardBorder, RoundedCornerShape(8.dp))
                         .clickable {
                             val cal = selectedDate
                             DatePickerDialog(
                                 context,
                                 { _, year, month, day ->
-                                    selectedDate = Calendar.getInstance().apply { set(year, month, day) }
+                                    onDateChange(Calendar.getInstance().apply { set(year, month, day) })
                                 },
                                 cal.get(Calendar.YEAR),
                                 cal.get(Calendar.MONTH),
@@ -282,13 +367,13 @@ private fun AddTransactionContent(
                     Icon(
                         imageVector = Icons.Default.DateRange,
                         contentDescription = null,
-                        tint = TextSecondary,
+                        tint = colors.textSecondary,
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
                         text = displayDate,
                         fontSize = 14.sp,
-                        color = TextPrimary
+                        color = colors.textPrimary
                     )
                 }
             }
@@ -299,23 +384,25 @@ private fun AddTransactionContent(
                     text = "Комментарий (необязательно)",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color = TextPrimary
+                    color = colors.textPrimary
                 )
                 TextField(
                     value = comment,
-                    onValueChange = { comment = it },
+                    onValueChange = onCommentChange,
                     placeholder = {
                         Text(
                             text = "Добавьте описание операции...",
                             fontSize = 16.sp,
-                            color = Color(0xFF717182)
+                            color = colors.textSecondary
                         )
                     },
                     colors = TextFieldDefaults.colors(
-                        unfocusedContainerColor = InputBackground,
-                        focusedContainerColor = InputBackground,
+                        unfocusedContainerColor = colors.inputBackground,
+                        focusedContainerColor = colors.inputBackground,
                         unfocusedIndicatorColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedTextColor = colors.textPrimary,
+                        focusedTextColor = colors.textPrimary
                     ),
                     shape = RoundedCornerShape(8.dp),
                     minLines = 3,
@@ -328,7 +415,7 @@ private fun AddTransactionContent(
         }
 
         // ── Footer ──
-        HorizontalDivider(color = Color(0xFFE5E7EB))
+        HorizontalDivider(color = colors.cardBorder)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -337,14 +424,14 @@ private fun AddTransactionContent(
             Button(
                 onClick = {
                     val amount = amountText.toDoubleOrNull() ?: 0.0
-                    if (amount > 0 && selectedCategory != null) {
+                    if (amount > 0 && selectedCategory != null && title.isNotBlank()) {
                         val timeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
                         onSave(
                             Transaction(
-                                id = UUID.randomUUID().toString(),
-                                title = selectedCategory!!.displayName,
+                                id = "",
+                                title = title.trim(),
                                 description = comment,
-                                amount = if (selectedType == TransactionType.EXPENSE) -amount else amount,
+                                amount = amount,
                                 category = selectedCategory!!,
                                 date = getDateLabel(selectedDate),
                                 time = timeFormatter.format(Calendar.getInstance().time),
@@ -382,16 +469,17 @@ private fun TransactionTypeButton(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    val colors = LocalAppColors.current
     Box(
         modifier = modifier
             .height(94.dp)
             .background(
-                color = if (isSelected) selectedBg else Color.White,
+                color = if (isSelected) selectedBg else colors.cardBackground,
                 shape = RoundedCornerShape(14.dp)
             )
             .border(
                 width = 1.dp,
-                color = if (isSelected) selectedBorder else Color(0xFFE5E7EB),
+                color = if (isSelected) selectedBorder else colors.cardBorder,
                 shape = RoundedCornerShape(14.dp)
             )
             .clickable(onClick = onClick),
@@ -404,7 +492,7 @@ private fun TransactionTypeButton(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (isSelected) selectedIconTint else TextSecondary,
+                tint = if (isSelected) selectedIconTint else colors.textSecondary,
                 modifier = Modifier.size(28.dp)
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -412,30 +500,12 @@ private fun TransactionTypeButton(
                 text = label,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
-                color = if (isSelected) selectedTextColor else Color(0xFF364153)
+                color = if (isSelected) selectedTextColor else colors.textSecondary
             )
         }
     }
 }
 
 private fun getDateLabel(calendar: Calendar): String {
-    val today = Calendar.getInstance().apply {
-        set(Calendar.HOUR_OF_DAY, 0)
-        set(Calendar.MINUTE, 0)
-        set(Calendar.SECOND, 0)
-        set(Calendar.MILLISECOND, 0)
-    }
-    val sel = (calendar.clone() as Calendar).apply {
-        set(Calendar.HOUR_OF_DAY, 0)
-        set(Calendar.MINUTE, 0)
-        set(Calendar.SECOND, 0)
-        set(Calendar.MILLISECOND, 0)
-    }
-    val diffDays = ((today.timeInMillis - sel.timeInMillis) / (1000 * 60 * 60 * 24)).toInt()
-    return when (diffDays) {
-        0 -> "Сегодня"
-        1 -> "Вчера"
-        in 2..6 -> "$diffDays дня назад"
-        else -> SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()).format(calendar.time)
-    }
+    return SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(calendar.time)
 }

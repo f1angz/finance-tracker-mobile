@@ -12,16 +12,12 @@ import kotlinx.coroutines.launch
 import mobile.tracker.finance.data.models.Transaction
 import mobile.tracker.finance.data.models.TransactionFilter
 import mobile.tracker.finance.data.models.TransactionGroup
+import mobile.tracker.finance.data.repository.ApiFinanceRepository
 import mobile.tracker.finance.data.repository.FinanceRepository
-import mobile.tracker.finance.data.repository.MockFinanceRepository
 import mobile.tracker.finance.utils.Result
 
-/**
- * ViewModel для экрана "Операции"
- * Управляет списком транзакций, фильтрацией и поиском
- */
 class OperationsViewModel(
-    private val repository: FinanceRepository = MockFinanceRepository()
+    private val repository: FinanceRepository = ApiFinanceRepository()
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(OperationsUiState())
@@ -33,17 +29,11 @@ class OperationsViewModel(
         loadTransactions()
     }
 
-    /**
-     * Изменить активный фильтр (Все / Доходы / Расходы)
-     */
     fun onFilterChanged(filter: TransactionFilter) {
         _uiState.update { it.copy(activeFilter = filter) }
         loadTransactions()
     }
 
-    /**
-     * Изменить строку поиска (с debounce 300 мс)
-     */
     fun onSearchQueryChanged(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
         searchJob?.cancel()
@@ -60,29 +50,26 @@ class OperationsViewModel(
         }
     }
 
-    /**
-     * Перезагрузить транзакции с текущими фильтрами
-     */
+    fun deleteTransaction(id: String) {
+        viewModelScope.launch {
+            repository.deleteTransaction(id)
+            loadTransactions()
+        }
+    }
+
     fun loadTransactions() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             val state = _uiState.value
             when (val result = repository.getTransactions(state.activeFilter, state.searchQuery)) {
-                is Result.Success -> {
-                    _uiState.update { it.copy(transactionGroups = result.data, isLoading = false) }
-                }
-                is Result.Error -> {
-                    _uiState.update { it.copy(error = result.message, isLoading = false) }
-                }
-                is Result.Loading -> {}
+                is Result.Success -> _uiState.update { it.copy(transactionGroups = result.data, isLoading = false) }
+                is Result.Error   -> _uiState.update { it.copy(error = result.message, isLoading = false) }
+                is Result.Loading -> Unit
             }
         }
     }
 }
 
-/**
- * Состояние UI экрана "Операции"
- */
 data class OperationsUiState(
     val isLoading: Boolean = false,
     val transactionGroups: List<TransactionGroup> = emptyList(),

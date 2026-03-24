@@ -11,12 +11,12 @@ import kotlinx.coroutines.launch
 import mobile.tracker.finance.data.models.Debt
 import mobile.tracker.finance.data.models.Goal
 import mobile.tracker.finance.data.models.Transaction
+import mobile.tracker.finance.data.repository.ApiDebtRepository
+import mobile.tracker.finance.data.repository.ApiFinanceRepository
+import mobile.tracker.finance.data.repository.ApiGoalRepository
 import mobile.tracker.finance.data.repository.DebtRepository
 import mobile.tracker.finance.data.repository.FinanceRepository
 import mobile.tracker.finance.data.repository.GoalRepository
-import mobile.tracker.finance.data.repository.MockDebtRepository
-import mobile.tracker.finance.data.repository.MockFinanceRepository
-import mobile.tracker.finance.data.repository.MockGoalRepository
 import mobile.tracker.finance.utils.Result
 
 enum class GoalsTab { GOALS, DEBTS }
@@ -29,15 +29,14 @@ data class GoalsUiState(
     val error: String? = null
 ) {
     val activeDebts: List<Debt> get() = debts.filter { !it.isPaid }
-    val paidDebts: List<Debt> get() = debts.filter { it.isPaid }
+    val paidDebts: List<Debt>   get() = debts.filter { it.isPaid }
 }
 
 class GoalsViewModel : ViewModel() {
 
-    // TODO: заменить на DI-инъекцию при подключении реального бекенда
-    private val goalRepository: GoalRepository = MockGoalRepository()
-    private val debtRepository: DebtRepository = MockDebtRepository()
-    private val financeRepository: FinanceRepository = MockFinanceRepository()
+    private val goalRepository: GoalRepository = ApiGoalRepository()
+    private val debtRepository: DebtRepository = ApiDebtRepository()
+    private val financeRepository: FinanceRepository = ApiFinanceRepository()
 
     private val _uiState = MutableStateFlow(GoalsUiState(isLoading = true))
     val uiState: StateFlow<GoalsUiState> = _uiState.asStateFlow()
@@ -53,22 +52,19 @@ class GoalsViewModel : ViewModel() {
             val goalsDeferred = async { goalRepository.getGoals() }
             val debtsDeferred = async { debtRepository.getDebts() }
 
-            val goalsResult = goalsDeferred.await()
-            val debtsResult = debtsDeferred.await()
-
-            val goals = when (goalsResult) {
-                is Result.Success -> goalsResult.data
+            val goals = when (val r = goalsDeferred.await()) {
+                is Result.Success -> r.data
                 is Result.Error -> {
-                    _uiState.update { it.copy(error = goalsResult.message, isLoading = false) }
+                    _uiState.update { it.copy(error = r.message, isLoading = false) }
                     return@launch
                 }
                 else -> emptyList()
             }
 
-            val debts = when (debtsResult) {
-                is Result.Success -> debtsResult.data
+            val debts = when (val r = debtsDeferred.await()) {
+                is Result.Success -> r.data
                 is Result.Error -> {
-                    _uiState.update { it.copy(error = debtsResult.message, isLoading = false) }
+                    _uiState.update { it.copy(error = r.message, isLoading = false) }
                     return@launch
                 }
                 else -> emptyList()
@@ -83,17 +79,15 @@ class GoalsViewModel : ViewModel() {
     }
 
     fun addTransaction(transaction: Transaction) {
-        viewModelScope.launch {
-            financeRepository.addTransaction(transaction)
-        }
+        viewModelScope.launch { financeRepository.addTransaction(transaction) }
     }
 
     fun onAddGoal() {
-        // TODO: открыть диалог / экран добавления цели
+        // TODO: открыть диалог добавления цели
     }
 
     fun onAddDebt() {
-        // TODO: открыть диалог / экран добавления долга
+        // TODO: открыть диалог добавления долга
     }
 
     fun onContribute(goalId: String) {

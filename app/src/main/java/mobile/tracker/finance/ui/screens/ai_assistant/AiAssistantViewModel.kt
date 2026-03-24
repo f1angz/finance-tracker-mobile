@@ -2,6 +2,7 @@ package mobile.tracker.finance.ui.screens.ai_assistant
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,8 +13,10 @@ import mobile.tracker.finance.data.models.AiInsight
 import mobile.tracker.finance.data.models.AiTip
 import mobile.tracker.finance.data.models.ChatMessage
 import mobile.tracker.finance.data.models.ChatRequest
+import mobile.tracker.finance.data.models.Transaction
 import mobile.tracker.finance.data.repository.AiRepository
-import mobile.tracker.finance.data.repository.MockAiRepository
+import mobile.tracker.finance.data.repository.ApiAiRepository
+import mobile.tracker.finance.data.repository.ApiFinanceRepository
 import mobile.tracker.finance.utils.Result
 import java.util.UUID
 
@@ -26,15 +29,24 @@ data class AiAssistantUiState(
     val chatMessages: List<ChatMessage> = emptyList(),
     val isLoadingInsights: Boolean = false,
     val isLoadingTips: Boolean = false,
+    val isRefreshing: Boolean = false,
     val isSendingMessage: Boolean = false,
     val chatInput: String = "",
-    val error: String? = null
+    val error: String? = null,
+    // Детали совета (bottom sheet)
+    val selectedTip: AiTip? = null,
+    val tipDetail: String? = null,
+    val isLoadingTipDetail: Boolean = false
 )
 
 class AiAssistantViewModel : ViewModel() {
 
-    // TODO: заменить на DI-инъекцию при подключении реального AI-бекенда
-    private val repository: AiRepository = MockAiRepository()
+    private val repository: AiRepository = ApiAiRepository()
+    private val financeRepository = ApiFinanceRepository()
+
+    fun addTransaction(transaction: Transaction) {
+        viewModelScope.launch { financeRepository.addTransaction(transaction) }
+    }
 
     private val _uiState = MutableStateFlow(AiAssistantUiState(isLoadingInsights = true))
     val uiState: StateFlow<AiAssistantUiState> = _uiState.asStateFlow()
@@ -48,6 +60,31 @@ class AiAssistantViewModel : ViewModel() {
         addWelcomeMessage()
     }
 
+    fun refresh() {
+        if (_uiState.value.isRefreshing) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true, error = null) }
+            val healthDeferred   = async { repository.getHealthScore() }
+            val insightsDeferred = async { repository.getInsights() }
+            val tipsDeferred     = async { repository.getTips() }
+            when (val r = healthDeferred.await()) {
+                is Result.Success -> _uiState.update { it.copy(healthScore = r.data) }
+                else -> Unit
+            }
+            when (val r = insightsDeferred.await()) {
+                is Result.Success -> _uiState.update { it.copy(insights = r.data) }
+                is Result.Error   -> _uiState.update { it.copy(error = r.message) }
+                else -> Unit
+            }
+            when (val r = tipsDeferred.await()) {
+                is Result.Success -> _uiState.update { it.copy(tips = r.data) }
+                is Result.Error   -> _uiState.update { it.copy(error = r.message) }
+                else -> Unit
+            }
+            _uiState.update { it.copy(isRefreshing = false) }
+        }
+    }
+
     fun selectTab(tab: AiTab) {
         _selectedTab.value = tab
         when (tab) {
@@ -59,6 +96,29 @@ class AiAssistantViewModel : ViewModel() {
             }
             else -> Unit
         }
+    }
+
+    fun openTipDetail(tip: AiTip) {
+        _uiState.update { it.copy(selectedTip = tip, tipDetail = null, isLoadingTipDetail = true) }
+        viewModelScope.launch {
+            val prompt = "Объясни подробно финансовый совет: «${tip.title}». " +
+                "Учти мои реальные данные по доходам и расходам. " +
+                "Дай 3–4 конкретных шага как применить этот совет. " +
+                "Ответ структурированный, на русском, без лишних вводных фраз."
+            when (val result = repository.sendMessage(ChatRequest(prompt))) {
+                is Result.Success -> _uiState.update {
+                    it.copy(tipDetail = result.data.reply, isLoadingTipDetail = false)
+                }
+                is Result.Error -> _uiState.update {
+                    it.copy(tipDetail = null, isLoadingTipDetail = false, error = result.message)
+                }
+                else -> Unit
+            }
+        }
+    }
+
+    fun closeTipDetail() {
+        _uiState.update { it.copy(selectedTip = null, tipDetail = null, isLoadingTipDetail = false) }
     }
 
     fun onChatInputChange(input: String) {

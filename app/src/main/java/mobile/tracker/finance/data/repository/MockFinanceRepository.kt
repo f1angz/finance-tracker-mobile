@@ -99,7 +99,7 @@ class MockFinanceRepository : FinanceRepository {
     /**
      * Получить статистику финансов с мок-данными
      */
-    override suspend fun getFinanceStats(): Result<FinanceStats> {
+    override suspend fun getFinanceStats(month: String?): Result<FinanceStats> {
         delay(500)
 
         return Result.Success(
@@ -119,7 +119,7 @@ class MockFinanceRepository : FinanceRepository {
     /**
      * Получить расходы по категориям с мок-данными
      */
-    override suspend fun getCategoryExpenses(): Result<List<CategoryExpense>> {
+    override suspend fun getCategoryExpenses(month: String?): Result<List<CategoryExpense>> {
         delay(300)
 
         val expenses = listOf(
@@ -157,6 +157,11 @@ class MockFinanceRepository : FinanceRepository {
     override suspend fun addTransaction(transaction: Transaction) {
         delay(200)
         transactions.add(0, transaction)
+    }
+
+    override suspend fun deleteTransaction(id: String) {
+        delay(200)
+        transactions.removeAll { it.id == id }
     }
 
     /**

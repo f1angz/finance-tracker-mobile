@@ -84,6 +84,10 @@ dependencies {
     // Image Loading
     implementation(libs.coil.compose)
 
+    // WorkManager
+    implementation(libs.androidx.work.runtime.ktx)
+
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

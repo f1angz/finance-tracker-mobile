@@ -14,10 +14,12 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import mobile.tracker.finance.data.models.CategoryExpense
 import mobile.tracker.finance.ui.theme.CardBackground
+import mobile.tracker.finance.ui.theme.LocalAppColors
 import mobile.tracker.finance.ui.theme.TextPrimary
 import mobile.tracker.finance.ui.theme.TextSecondary
 import kotlin.math.cos
@@ -35,7 +37,7 @@ fun PieChartSection(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(CardBackground, RoundedCornerShape(16.dp))
+            .background(LocalAppColors.current.cardBackground, RoundedCornerShape(16.dp))
             .padding(16.dp)
     ) {
         Column {
@@ -43,37 +45,39 @@ fun PieChartSection(
                 text = "Расходы по категориям",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = TextPrimary
+                color = LocalAppColors.current.textPrimary
             )
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Диаграмма
-                Box(
-                    modifier = Modifier
-                        .size(160.dp),
-                    contentAlignment = Alignment.Center
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                val chartSize = (maxWidth * 0.38f).coerceIn(80.dp, 160.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    PieChart(expenses = expenses)
-                }
+                    // Диаграмма
+                    Box(
+                        modifier = Modifier.size(chartSize),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        PieChart(expenses = expenses, chartSize = chartSize)
+                    }
 
-                Spacer(modifier = Modifier.width(16.dp))
+                    Spacer(modifier = Modifier.width(16.dp))
 
-                // Легенда
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    expenses.forEach { expense ->
-                        LegendItem(
-                            color = Color(expense.category.color),
-                            label = expense.category.displayName
-                        )
+                    // Легенда
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        expenses.forEach { expense ->
+                            LegendItem(
+                                color = Color(expense.category.color),
+                                label = expense.category.displayName
+                            )
+                        }
                     }
                 }
             }
@@ -85,11 +89,11 @@ fun PieChartSection(
  * Компонент круговой диаграммы
  */
 @Composable
-private fun PieChart(expenses: List<CategoryExpense>) {
-    Canvas(modifier = Modifier.size(160.dp)) {
+private fun PieChart(expenses: List<CategoryExpense>, chartSize: Dp = 160.dp) {
+    Canvas(modifier = Modifier.size(chartSize)) {
         val totalPercentage = expenses.sumOf { it.percentage.toDouble() }.toFloat()
         var startAngle = -90f
-        val strokeWidth = 32.dp.toPx()
+        val strokeWidth = (chartSize.toPx() * 0.2f).coerceIn(16f, 32f)
         val radius = (size.minDimension - strokeWidth) / 2
 
         expenses.forEach { expense ->
@@ -140,7 +144,7 @@ private fun LegendItem(
         Text(
             text = label,
             fontSize = 12.sp,
-            color = TextSecondary,
+            color = LocalAppColors.current.textSecondary,
             fontWeight = FontWeight.Normal
         )
     }

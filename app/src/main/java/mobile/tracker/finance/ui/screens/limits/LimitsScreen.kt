@@ -21,6 +21,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import mobile.tracker.finance.data.models.Limit
@@ -28,6 +30,7 @@ import mobile.tracker.finance.data.models.LimitStatus
 import mobile.tracker.finance.navigation.Screen
 import mobile.tracker.finance.ui.components.AddTransactionBottomSheet
 import mobile.tracker.finance.ui.components.BottomNavBar
+import mobile.tracker.finance.ui.screens.operations.DraftViewModel
 import mobile.tracker.finance.ui.theme.*
 
 // ─── Цвета, специфичные для экрана Лимиты ────────────────────────────────────
@@ -57,12 +60,17 @@ fun LimitsScreen(
     viewModel: LimitsViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val draftViewModel: DraftViewModel = viewModel(context as ViewModelStoreOwner)
+    val draft by draftViewModel.draft.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
 
     if (showAddDialog) {
         AddTransactionBottomSheet(
-            onDismiss = { showAddDialog = false },
-            onSave = { viewModel.addTransaction(it) }
+            onDismiss    = { showAddDialog = false },
+            onSave       = { viewModel.addTransaction(it); draftViewModel.clearDraft() },
+            initialDraft = draft,
+            onDraftSave  = draftViewModel::saveDraft
         )
     }
 
@@ -93,7 +101,7 @@ fun LimitsScreen(
                 }
             )
         },
-        containerColor = Color(0xFFF9FAFB)
+        containerColor = LocalAppColors.current.background
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -164,6 +172,7 @@ private fun LimitsTopBar(onAddClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .background(CardBackground)
+            .statusBarsPadding()
     ) {
         Row(
             modifier = Modifier

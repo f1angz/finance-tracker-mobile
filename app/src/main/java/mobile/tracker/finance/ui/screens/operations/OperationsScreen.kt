@@ -17,10 +17,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import mobile.tracker.finance.R
@@ -31,6 +33,7 @@ import mobile.tracker.finance.data.models.TransactionType
 import mobile.tracker.finance.navigation.Screen
 import mobile.tracker.finance.ui.components.AddTransactionBottomSheet
 import mobile.tracker.finance.ui.components.BottomNavBar
+import mobile.tracker.finance.ui.components.TransactionDetailBottomSheet
 import mobile.tracker.finance.ui.theme.*
 import java.text.DecimalFormat
 
@@ -44,12 +47,29 @@ fun OperationsScreen(
     viewModel: OperationsViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val draftViewModel: DraftViewModel = viewModel(context as ViewModelStoreOwner)
+    val draft by draftViewModel.draft.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
+    var selectedTransaction by remember { mutableStateOf<Transaction?>(null) }
 
     if (showAddDialog) {
         AddTransactionBottomSheet(
-            onDismiss = { showAddDialog = false },
-            onSave = { viewModel.addTransaction(it) }
+            onDismiss    = { showAddDialog = false },
+            onSave       = { viewModel.addTransaction(it); draftViewModel.clearDraft() },
+            initialDraft = draft,
+            onDraftSave  = draftViewModel::saveDraft
+        )
+    }
+
+    selectedTransaction?.let { transaction ->
+        TransactionDetailBottomSheet(
+            transaction = transaction,
+            onDismiss = { selectedTransaction = null },
+            onDelete = { id ->
+                viewModel.deleteTransaction(id)
+                selectedTransaction = null
+            }
         )
     }
 
@@ -80,7 +100,7 @@ fun OperationsScreen(
                 }
             )
         },
-        containerColor = BackgroundLight
+        containerColor = LocalAppColors.current.background
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -128,7 +148,7 @@ fun OperationsScreen(
                             Spacer(Modifier.height(12.dp))
                             Text(
                                 text = "Операции не найдены",
-                                color = TextSecondary,
+                                color = LocalAppColors.current.textSecondary,
                                 fontSize = 16.sp
                             )
                         }
@@ -136,7 +156,10 @@ fun OperationsScreen(
                 }
 
                 else -> {
-                    TransactionList(groups = uiState.transactionGroups)
+                    TransactionList(
+                        groups = uiState.transactionGroups,
+                        onTransactionClick = { selectedTransaction = it }
+                    )
                 }
             }
         }
@@ -156,10 +179,12 @@ fun OperationsScreen(
 
 @Composable
 private fun OperationsTopBar(onAddClick: () -> Unit) {
+    val colors = LocalAppColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(BackgroundLight)
+            .background(colors.background)
+            .statusBarsPadding()
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -168,28 +193,28 @@ private fun OperationsTopBar(onAddClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            IconButton(onClick = { /* TODO: Open navigation drawer */ }) {
+            IconButton(onClick = { }) {
                 Icon(
                     imageVector = Icons.Default.Menu,
                     contentDescription = "Меню",
-                    tint = TextPrimary
+                    tint = colors.textPrimary
                 )
             }
             Text(
                 text = "Операции",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextPrimary
+                color = colors.textPrimary
             )
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Box {
-                IconButton(onClick = { /* TODO: Open notifications */ }) {
+                IconButton(onClick = { }) {
                     Icon(
                         imageVector = Icons.Default.Notifications,
                         contentDescription = "Уведомления",
-                        tint = TextPrimary
+                        tint = colors.textPrimary
                     )
                 }
                 Box(
@@ -250,14 +275,14 @@ private fun SearchAndFilterBar(
             },
             shape = RoundedCornerShape(12.dp),
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = InputBackground,
-                unfocusedContainerColor = InputBackground,
+                focusedContainerColor = LocalAppColors.current.inputBackground,
+                unfocusedContainerColor = LocalAppColors.current.inputBackground,
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
                 disabledIndicatorColor = Color.Transparent,
                 cursorColor = PrimaryBlue,
-                focusedTextColor = TextPrimary,
-                unfocusedTextColor = TextPrimary
+                focusedTextColor = LocalAppColors.current.textPrimary,
+                unfocusedTextColor = LocalAppColors.current.textPrimary
             ),
             modifier = Modifier
                 .weight(1f)
@@ -270,15 +295,15 @@ private fun SearchAndFilterBar(
             modifier = Modifier
                 .size(50.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(White)
-                .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(12.dp))
-                .clickable { /* TODO: Show advanced filter sheet */ },
+                .background(LocalAppColors.current.cardBackground)
+                .border(1.dp, LocalAppColors.current.cardBorder, RoundedCornerShape(12.dp))
+                .clickable { },
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 painter = painterResource(R.drawable.filter_list),
                 contentDescription = "Фильтры",
-                tint = TextPrimary,
+                tint = LocalAppColors.current.textPrimary,
                 modifier = Modifier.size(22.dp)
             )
         }
@@ -322,14 +347,15 @@ private fun FilterChipTab(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
 
+    val colors = LocalAppColors.current
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(20.dp))
-            .background(if (isSelected) PrimaryBlue else White)
+            .background(if (isSelected) PrimaryBlue else colors.cardBackground)
             .then(
                 if (!isSelected) Modifier.border(
                     width = 1.dp,
-                    color = Color(0xFFE5E7EB),
+                    color = colors.cardBorder,
                     shape = RoundedCornerShape(20.dp)
                 ) else Modifier
             )
@@ -353,7 +379,10 @@ private fun FilterChipTab(
 // ─── Transaction List ─────────────────────────────────────────────────────────
 
 @Composable
-private fun TransactionList(groups: List<TransactionGroup>) {
+private fun TransactionList(
+    groups: List<TransactionGroup>,
+    onTransactionClick: (Transaction) -> Unit
+) {
     LazyColumn(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -363,7 +392,10 @@ private fun TransactionList(groups: List<TransactionGroup>) {
                 DateSectionHeader(label = group.dateLabel)
             }
             items(items = group.transactions, key = { it.id }) { transaction ->
-                OperationsTransactionItem(transaction = transaction)
+                OperationsTransactionItem(
+                    transaction = transaction,
+                    onClick = { onTransactionClick(transaction) }
+                )
             }
         }
         item { Spacer(Modifier.height(8.dp)) }
@@ -376,7 +408,7 @@ private fun DateSectionHeader(label: String) {
         text = label,
         fontSize = 14.sp,
         fontWeight = FontWeight.Medium,
-        color = TextSecondary,
+        color = LocalAppColors.current.textSecondary,
         modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
     )
 }
@@ -386,6 +418,7 @@ private fun DateSectionHeader(label: String) {
 @Composable
 private fun OperationsTransactionItem(
     transaction: Transaction,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val formatter = DecimalFormat("#,###")
@@ -398,10 +431,12 @@ private fun OperationsTransactionItem(
     val typeLabel = if (isIncome) "Доход" else "Расход"
     val badgeBgColor = if (isIncome) GreenPositive.copy(alpha = 0.1f) else RedNegative.copy(alpha = 0.1f)
 
+    val colors = LocalAppColors.current
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(CardBackground, RoundedCornerShape(16.dp))
+            .background(colors.cardBackground, RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
             .padding(16.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -434,7 +469,7 @@ private fun OperationsTransactionItem(
                     text = transaction.title,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = TextPrimary
+                    color = LocalAppColors.current.textPrimary
                 )
 
                 if (transaction.description.isNotEmpty()) {
@@ -442,7 +477,7 @@ private fun OperationsTransactionItem(
                     Text(
                         text = transaction.description,
                         fontSize = 13.sp,
-                        color = TextSecondary
+                        color = LocalAppColors.current.textSecondary
                     )
                 }
 
@@ -470,7 +505,7 @@ private fun OperationsTransactionItem(
                         Text(
                             text = transaction.time,
                             fontSize = 12.sp,
-                            color = TextSecondary
+                            color = LocalAppColors.current.textSecondary
                         )
                     }
                 }

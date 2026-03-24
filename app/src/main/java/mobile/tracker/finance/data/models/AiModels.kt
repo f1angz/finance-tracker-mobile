@@ -1,6 +1,6 @@
 package mobile.tracker.finance.data.models
 
-// ─── AI Health Score ──────────────────────────────────────────────────────────
+// Финансовое здоровь
 
 data class AiHealthScore(
     val overall: Int,
@@ -10,7 +10,7 @@ data class AiHealthScore(
     val discipline: Int
 )
 
-// ─── Insights ────────────────────────────────────────────────────────────────
+// Инсайты
 
 enum class InsightType { DANGER, SUCCESS, WARNING, INFO }
 
@@ -22,7 +22,7 @@ data class AiInsight(
     val recommendation: String
 )
 
-// ─── Tips ────────────────────────────────────────────────────────────────────
+// Советы
 
 data class AiTip(
     val id: String,
@@ -31,7 +31,7 @@ data class AiTip(
     val effect: String      // "~300₽/мес", "+15,000₽/мес", "По плану", ...
 )
 
-// ─── Chat ────────────────────────────────────────────────────────────────────
+// Чат
 
 data class ChatMessage(
     val id: String,
