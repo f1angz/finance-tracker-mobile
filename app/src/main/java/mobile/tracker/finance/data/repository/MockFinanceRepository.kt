@@ -10,11 +10,97 @@ import mobile.tracker.finance.utils.Result
  */
 class MockFinanceRepository : FinanceRepository {
 
+    companion object {
+        // Shared mutable list — all ViewModel instances see the same data
+        val transactions = mutableListOf(
+            Transaction(
+                id = "op_1",
+                title = "Продукты",
+                description = "Супермаркет Пятёрочка",
+                amount = -3450.0,
+                category = TransactionCategory.PRODUCTS,
+                date = "Сегодня",
+                time = "14:30",
+                type = TransactionType.EXPENSE
+            ),
+            Transaction(
+                id = "op_2",
+                title = "Зарплата",
+                description = "Ежемесячная зарплата",
+                amount = 85000.0,
+                category = TransactionCategory.SALARY,
+                date = "Вчера",
+                time = "09:00",
+                type = TransactionType.INCOME
+            ),
+            Transaction(
+                id = "op_3",
+                title = "Транспорт",
+                description = "Заправка автомобиля",
+                amount = -1200.0,
+                category = TransactionCategory.TRANSPORT,
+                date = "Вчера",
+                time = "08:15",
+                type = TransactionType.EXPENSE
+            ),
+            Transaction(
+                id = "op_4",
+                title = "Развлечения",
+                description = "Кино с семьёй",
+                amount = -2800.0,
+                category = TransactionCategory.ENTERTAINMENT,
+                date = "2 дня назад",
+                time = "19:45",
+                type = TransactionType.EXPENSE
+            ),
+            Transaction(
+                id = "op_5",
+                title = "Фриланс",
+                description = "Разработка проекта",
+                amount = 25000.0,
+                category = TransactionCategory.FREELANCE,
+                date = "3 дня назад",
+                time = "15:00",
+                type = TransactionType.INCOME
+            ),
+            Transaction(
+                id = "op_6",
+                title = "Одежда",
+                description = "Онлайн-магазин Wildberries",
+                amount = -4500.0,
+                category = TransactionCategory.CLOTHING,
+                date = "3 дня назад",
+                time = "11:20",
+                type = TransactionType.EXPENSE
+            ),
+            Transaction(
+                id = "op_7",
+                title = "Здоровье",
+                description = "Аптека 36.6",
+                amount = -1800.0,
+                category = TransactionCategory.HEALTH,
+                date = "5 дней назад",
+                time = "10:05",
+                type = TransactionType.EXPENSE
+            ),
+            Transaction(
+                id = "op_8",
+                title = "Фриланс",
+                description = "Консультация клиента",
+                amount = 12000.0,
+                category = TransactionCategory.FREELANCE,
+                date = "5 дней назад",
+                time = "17:30",
+                type = TransactionType.INCOME
+            )
+        )
+    }
+
     /**
      * Получить статистику финансов с мок-данными
      */
-    override suspend fun getFinanceStats(): Result<FinanceStats> {
-        delay(500) // Имитация сетевого запроса
+    override suspend fun getFinanceStats(month: String?): Result<FinanceStats> {
+        delay(500)
 
         return Result.Success(
             FinanceStats(
@@ -33,7 +119,7 @@ class MockFinanceRepository : FinanceRepository {
     /**
      * Получить расходы по категориям с мок-данными
      */
-    override suspend fun getCategoryExpenses(): Result<List<CategoryExpense>> {
+    override suspend fun getCategoryExpenses(month: String?): Result<List<CategoryExpense>> {
         delay(300)
 
         val expenses = listOf(
@@ -66,54 +152,59 @@ class MockFinanceRepository : FinanceRepository {
     }
 
     /**
-     * Получить последние транзакции с мок-данными
+     * Добавить новую транзакцию
+     */
+    override suspend fun addTransaction(transaction: Transaction) {
+        delay(200)
+        transactions.add(0, transaction)
+    }
+
+    override suspend fun deleteTransaction(id: String) {
+        delay(200)
+        transactions.removeAll { it.id == id }
+    }
+
+    /**
+     * Получить последние транзакции для главного экрана
      */
     override suspend fun getRecentTransactions(limit: Int): Result<List<Transaction>> {
         delay(400)
+        return Result.Success(transactions.take(limit))
+    }
 
-        val transactions = listOf(
-            Transaction(
-                id = "1",
-                title = "Продукты",
-                amount = -3450.0,
-                category = TransactionCategory.PRODUCTS,
-                date = "Вчера, 15:30",
-                type = TransactionType.EXPENSE
-            ),
-            Transaction(
-                id = "2",
-                title = "Зарплата",
-                amount = 95000.0,
-                category = TransactionCategory.SALARY,
-                date = "Вчера, 09:00",
-                type = TransactionType.INCOME
-            ),
-            Transaction(
-                id = "3",
-                title = "Транспорт",
-                amount = -1200.0,
-                category = TransactionCategory.TRANSPORT,
-                date = "Вчера, 08:15",
-                type = TransactionType.EXPENSE
-            ),
-            Transaction(
-                id = "4",
-                title = "Развлечения",
-                amount = -2800.0,
-                category = TransactionCategory.ENTERTAINMENT,
-                date = "2 дня назад",
-                type = TransactionType.EXPENSE
-            ),
-            Transaction(
-                id = "5",
-                title = "Фриланс",
-                amount = 15000.0,
-                category = TransactionCategory.FREELANCE,
-                date = "3 дня назад",
-                type = TransactionType.INCOME
-            )
-        ).take(limit)
+    /**
+     * Полный список транзакций для экрана "Операции" с фильтрацией и поиском
+     */
+    override suspend fun getTransactions(
+        filter: TransactionFilter,
+        searchQuery: String
+    ): Result<List<TransactionGroup>> {
+        delay(400)
 
-        return Result.Success(transactions)
+        // Применяем фильтр по типу
+        val filteredByType = when (filter) {
+            TransactionFilter.ALL -> transactions.toList()
+            TransactionFilter.INCOME -> transactions.filter { it.type == TransactionType.INCOME }
+            TransactionFilter.EXPENSE -> transactions.filter { it.type == TransactionType.EXPENSE }
+        }
+
+        // Применяем поиск по названию и описанию
+        val filtered = if (searchQuery.isBlank()) {
+            filteredByType
+        } else {
+            filteredByType.filter { transaction ->
+                transaction.title.contains(searchQuery, ignoreCase = true) ||
+                transaction.description.contains(searchQuery, ignoreCase = true)
+            }
+        }
+
+        // Группируем по дате (порядок сохраняется через LinkedHashMap)
+        val grouped = filtered
+            .groupBy { it.date }
+            .map { (dateLabel, transactions) ->
+                TransactionGroup(dateLabel = dateLabel, transactions = transactions)
+            }
+
+        return Result.Success(grouped)
     }
 }

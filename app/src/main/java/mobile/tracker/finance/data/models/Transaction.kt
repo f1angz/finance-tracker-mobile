@@ -4,17 +4,21 @@ package mobile.tracker.finance.data.models
  * Модель транзакции (операции)
  * @param id Уникальный идентификатор транзакции
  * @param title Название транзакции
+ * @param description Описание / место транзакции (например, "Супермаркет Пятёрочка")
  * @param amount Сумма транзакции (положительная для доходов, отрицательная для расходов)
  * @param category Категория транзакции
- * @param date Дата и время транзакции
+ * @param date Метка даты группы (например, "Сегодня", "Вчера")
+ * @param time Время транзакции (например, "14:30")
  * @param type Тип транзакции (доход/расход)
  */
 data class Transaction(
     val id: String,
     val title: String,
+    val description: String = "",
     val amount: Double,
     val category: TransactionCategory,
     val date: String,
+    val time: String = "",
     val type: TransactionType
 )
 

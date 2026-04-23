@@ -6,6 +6,11 @@ package mobile.tracker.finance.navigation
 sealed class Screen(val route: String) {
     object Login : Screen("login")
     object Register : Screen("register")
-    // TODO: Добавить другие экраны (главный экран, транзакции и т.д.)
     object Home : Screen("home")
+    object Operations : Screen("operations")
+    object Categories : Screen("categories")
+    object Limits : Screen("limits")
+    object AiAssistant : Screen("ai_assistant")
+    object Goals : Screen("goals")
+    object Settings : Screen("settings")
 }

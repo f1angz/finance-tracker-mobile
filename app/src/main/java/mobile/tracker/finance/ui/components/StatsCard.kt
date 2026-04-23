@@ -35,71 +35,128 @@ fun StatsCard(
     changePercent: Double,
     icon: Painter,
     iconBackgroundColor: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    horizontal: Boolean = false
 ) {
     val formatter = DecimalFormat("#,###")
     val isPositive = changePercent >= 0
 
+    val colors = LocalAppColors.current
     Box(
         modifier = modifier
-            .background(CardBackground, RoundedCornerShape(16.dp))
+            .background(colors.cardBackground, RoundedCornerShape(16.dp))
             .padding(16.dp)
     ) {
-        Column {
-            // Иконка в круглом фоне
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(iconBackgroundColor.copy(alpha = 0.1f), CircleShape),
-                contentAlignment = Alignment.Center
+        if (horizontal) {
+            // ── Горизонтальный лейаут (полноширинная карточка баланса) ──
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Icon(
-                    painter = icon,
-                    contentDescription = title,
-                    tint = iconBackgroundColor,
-                    modifier = Modifier.size(20.dp)
+                // Левая часть: иконка + название + изменение
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(iconBackgroundColor.copy(alpha = 0.1f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = icon,
+                            contentDescription = title,
+                            tint = iconBackgroundColor,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = title,
+                            fontSize = 13.sp,
+                            color = colors.textSecondary,
+                            fontWeight = FontWeight.Normal
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = if (isPositive) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                contentDescription = null,
+                                tint = if (isPositive) GreenPositive else RedNegative,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(
+                                text = "${if (isPositive) "+" else ""}${String.format("%.1f", changePercent)}%",
+                                fontSize = 12.sp,
+                                color = if (isPositive) GreenPositive else RedNegative,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+                // Правая часть: крупная сумма
+                Text(
+                    text = "₽ ${formatter.format(amount.toLong())}",
+                    fontSize = 26.sp,
+                    color = colors.textPrimary,
+                    fontWeight = FontWeight.Bold
                 )
             }
+        } else {
+            // ── Вертикальный лейаут (маленькие карточки) ──
+            Column {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(iconBackgroundColor.copy(alpha = 0.1f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = icon,
+                        contentDescription = title,
+                        tint = iconBackgroundColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
 
-            Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-            // Заголовок
-            Text(
-                text = title,
-                fontSize = 12.sp,
-                color = TextSecondary,
-                fontWeight = FontWeight.Normal
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Сумма
-            Text(
-                text = "₽ ${formatter.format(amount.toLong())}",
-                fontSize = 20.sp,
-                color = TextPrimary,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Процент изменения
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = if (isPositive) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = null,
-                    tint = if (isPositive) GreenPositive else RedNegative,
-                    modifier = Modifier.size(14.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = "${if (isPositive) "+" else ""}${String.format("%.1f", changePercent)}%",
+                    text = title,
                     fontSize = 12.sp,
-                    color = if (isPositive) GreenPositive else RedNegative,
-                    fontWeight = FontWeight.Medium
+                    color = colors.textSecondary,
+                    fontWeight = FontWeight.Normal
                 )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "₽ ${formatter.format(amount.toLong())}",
+                    fontSize = 20.sp,
+                    color = colors.textPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = if (isPositive) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = if (isPositive) GreenPositive else RedNegative,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "${if (isPositive) "+" else ""}${String.format("%.1f", changePercent)}%",
+                        fontSize = 12.sp,
+                        color = if (isPositive) GreenPositive else RedNegative,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
         }
     }

@@ -28,10 +28,11 @@ fun BarChartSection(
     monthlyStats: List<MonthlyStats>,
     modifier: Modifier = Modifier
 ) {
+    val colors = LocalAppColors.current
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(CardBackground, RoundedCornerShape(16.dp))
+            .background(colors.cardBackground, RoundedCornerShape(16.dp))
             .padding(16.dp)
     ) {
         Column {
@@ -44,7 +45,7 @@ fun BarChartSection(
                     text = "Динамика",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = TextPrimary
+                    color = colors.textPrimary
                 )
 
                 // Легенда
@@ -71,10 +72,16 @@ fun BarChartSection(
 private fun BarChart(monthlyStats: List<MonthlyStats>) {
     val maxValue = monthlyStats.maxOfOrNull { maxOf(it.income, it.expense) } ?: 0.0
 
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val chartHeight = when {
+            maxWidth < 360.dp -> 160.dp
+            maxWidth > 600.dp -> 260.dp
+            else -> 200.dp
+        }
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(200.dp)
+            .height(chartHeight)
     ) {
         // График
         Row(
@@ -105,13 +112,14 @@ private fun BarChart(monthlyStats: List<MonthlyStats>) {
                 Text(
                     text = stats.month,
                     fontSize = 11.sp,
-                    color = TextSecondary,
+                    color = LocalAppColors.current.textSecondary,
                     modifier = Modifier.weight(1f),
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
             }
         }
     }
+    } // BoxWithConstraints
 }
 
 /**
@@ -181,7 +189,7 @@ private fun LegendItem(color: Color, label: String) {
         Text(
             text = label,
             fontSize = 11.sp,
-            color = TextSecondary,
+            color = LocalAppColors.current.textSecondary,
             fontWeight = FontWeight.Normal
         )
     }

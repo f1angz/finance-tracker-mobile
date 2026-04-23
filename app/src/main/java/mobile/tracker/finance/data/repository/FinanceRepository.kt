@@ -10,12 +10,12 @@ interface FinanceRepository {
     /**
      * Получить статистику финансов
      */
-    suspend fun getFinanceStats(): Result<FinanceStats>
+    suspend fun getFinanceStats(month: String? = null): Result<FinanceStats>
 
     /**
      * Получить расходы по категориям
      */
-    suspend fun getCategoryExpenses(): Result<List<CategoryExpense>>
+    suspend fun getCategoryExpenses(month: String? = null): Result<List<CategoryExpense>>
 
     /**
      * Получить статистику по месяцам
@@ -23,8 +23,28 @@ interface FinanceRepository {
     suspend fun getMonthlyStats(): Result<List<MonthlyStats>>
 
     /**
-     * Получить последние транзакции
+     * Получить последние транзакции (для главного экрана)
      * @param limit Количество транзакций
      */
     suspend fun getRecentTransactions(limit: Int = 10): Result<List<Transaction>>
+
+    /**
+     * Получить все транзакции с фильтрацией и поиском (для экрана Операции)
+     * @param filter Тип фильтра (все / доходы / расходы)
+     * @param searchQuery Строка поиска по названию или описанию
+     */
+    suspend fun getTransactions(
+        filter: TransactionFilter = TransactionFilter.ALL,
+        searchQuery: String = ""
+    ): Result<List<TransactionGroup>>
+
+    /**
+     * Добавить новую транзакцию
+     */
+    suspend fun addTransaction(transaction: Transaction)
+
+    /**
+     * Удалить транзакцию по ID
+     */
+    suspend fun deleteTransaction(id: String)
 }

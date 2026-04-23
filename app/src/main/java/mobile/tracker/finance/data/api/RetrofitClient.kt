@@ -1,22 +1,16 @@
 package mobile.tracker.finance.data.api
 
+import mobile.tracker.finance.data.TokenManager
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
-/**
- * Singleton для настройки Retrofit клиента
- */
 object RetrofitClient {
 
-    // TODO: Заменить на реальный URL бекенда, когда он будет готов
-    private const val BASE_URL = "https://api.financetracker.example.com/"
+    private const val BASE_URL = "http://192.168.1.2:8080/"
 
-    /**
-     * OkHttp клиент с логированием запросов
-     */
     private val okHttpClient: OkHttpClient by lazy {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
@@ -24,15 +18,24 @@ object RetrofitClient {
 
         OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
+            .addInterceptor { chain ->
+                val original = chain.request()
+                val token = TokenManager.getToken()
+                val request = if (token != null) {
+                    original.newBuilder()
+                        .addHeader("Authorization", "Bearer $token")
+                        .build()
+                } else {
+                    original
+                }
+                chain.proceed(request)
+            }
             .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(120, TimeUnit.SECONDS)
+            .writeTimeout(120, TimeUnit.SECONDS)
             .build()
     }
 
-    /**
-     * Экземпляр Retrofit
-     */
     private val retrofit: Retrofit by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
@@ -41,9 +44,6 @@ object RetrofitClient {
             .build()
     }
 
-    /**
-     * API сервис для выполнения запросов
-     */
     val apiService: ApiService by lazy {
         retrofit.create(ApiService::class.java)
     }
