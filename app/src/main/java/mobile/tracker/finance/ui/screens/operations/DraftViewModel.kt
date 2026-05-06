@@ -7,18 +7,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import mobile.tracker.finance.data.DraftStore
-import mobile.tracker.finance.data.models.TransactionCategory
 import mobile.tracker.finance.data.models.TransactionType
 
 data class TransactionDraft(
     val type: TransactionType = TransactionType.EXPENSE,
     val title: String = "",
     val amountText: String = "",
-    val category: TransactionCategory? = null,
+    val categorySlug: String? = null,
     val dateMillis: Long = System.currentTimeMillis(),
     val comment: String = ""
 ) {
-    fun isEmpty() = title.isBlank() && amountText.isBlank() && category == null && comment.isBlank()
+    fun isEmpty() = title.isBlank() && amountText.isBlank() && categorySlug == null && comment.isBlank()
 }
 
 class DraftViewModel : ViewModel() {

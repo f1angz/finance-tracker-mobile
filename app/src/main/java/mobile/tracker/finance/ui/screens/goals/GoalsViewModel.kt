@@ -8,8 +8,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import mobile.tracker.finance.data.models.CreateDebtRequest
+import mobile.tracker.finance.data.models.CreateGoalRequest
 import mobile.tracker.finance.data.models.Debt
+import mobile.tracker.finance.data.models.DebtType
 import mobile.tracker.finance.data.models.Goal
+import mobile.tracker.finance.data.models.GoalContributionRequest
 import mobile.tracker.finance.data.models.Transaction
 import mobile.tracker.finance.data.repository.ApiDebtRepository
 import mobile.tracker.finance.data.repository.ApiFinanceRepository
@@ -26,7 +30,10 @@ data class GoalsUiState(
     val debts: List<Debt> = emptyList(),
     val selectedTab: GoalsTab = GoalsTab.GOALS,
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val showAddGoalSheet: Boolean = false,
+    val showAddDebtSheet: Boolean = false,
+    val contributeGoalId: String? = null,
 ) {
     val activeDebts: List<Debt> get() = debts.filter { !it.isPaid }
     val paidDebts: List<Debt>   get() = debts.filter { it.isPaid }
@@ -41,9 +48,7 @@ class GoalsViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(GoalsUiState(isLoading = true))
     val uiState: StateFlow<GoalsUiState> = _uiState.asStateFlow()
 
-    init {
-        loadData()
-    }
+    init { loadData() }
 
     fun loadData() {
         viewModelScope.launch {
@@ -74,27 +79,96 @@ class GoalsViewModel : ViewModel() {
         }
     }
 
-    fun selectTab(tab: GoalsTab) {
-        _uiState.update { it.copy(selectedTab = tab) }
-    }
+    fun selectTab(tab: GoalsTab) = _uiState.update { it.copy(selectedTab = tab) }
 
     fun addTransaction(transaction: Transaction) {
         viewModelScope.launch { financeRepository.addTransaction(transaction) }
     }
 
-    fun onAddGoal() {
-        // TODO: открыть диалог добавления цели
+    // ── Goals ─────────────────────────────────────────────────────────────────
+
+    fun onAddGoal() = _uiState.update { it.copy(showAddGoalSheet = true) }
+    fun onDismissAddGoal() = _uiState.update { it.copy(showAddGoalSheet = false) }
+
+    fun createGoal(emoji: String, title: String, targetAmount: Double, targetDate: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(showAddGoalSheet = false) }
+            val req = CreateGoalRequest(
+                emoji = emoji,
+                title = title,
+                targetAmount = targetAmount,
+                targetDate = targetDate
+            )
+            when (val r = goalRepository.createGoal(req)) {
+                is Result.Success -> _uiState.update { s -> s.copy(goals = s.goals + r.data) }
+                is Result.Error   -> _uiState.update { it.copy(error = r.message) }
+                else -> {}
+            }
+        }
     }
 
-    fun onAddDebt() {
-        // TODO: открыть диалог добавления долга
+    fun onContribute(goalId: String) = _uiState.update { it.copy(contributeGoalId = goalId) }
+    fun onDismissContribute() = _uiState.update { it.copy(contributeGoalId = null) }
+
+    fun contribute(amount: Double) {
+        val goalId = _uiState.value.contributeGoalId ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(contributeGoalId = null) }
+            when (val r = goalRepository.addContribution(goalId, GoalContributionRequest(amount))) {
+                is Result.Success -> _uiState.update { s ->
+                    s.copy(goals = s.goals.map { if (it.id == goalId) r.data else it })
+                }
+                is Result.Error -> _uiState.update { it.copy(error = r.message) }
+                else -> {}
+            }
+        }
     }
 
-    fun onContribute(goalId: String) {
-        // TODO: открыть диалог пополнения цели
+    fun deleteGoal(goalId: String) {
+        viewModelScope.launch {
+            goalRepository.deleteGoal(goalId)
+            _uiState.update { s -> s.copy(goals = s.goals.filter { it.id != goalId }) }
+        }
+    }
+
+    // ── Debts ─────────────────────────────────────────────────────────────────
+
+    fun onAddDebt() = _uiState.update { it.copy(showAddDebtSheet = true) }
+    fun onDismissAddDebt() = _uiState.update { it.copy(showAddDebtSheet = false) }
+
+    fun createDebt(personName: String, type: DebtType, amount: Double, dueDate: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(showAddDebtSheet = false) }
+            val req = CreateDebtRequest(
+                personName = personName,
+                type = type,
+                amount = amount,
+                dueDate = dueDate
+            )
+            when (val r = debtRepository.createDebt(req)) {
+                is Result.Success -> _uiState.update { s -> s.copy(debts = s.debts + r.data) }
+                is Result.Error   -> _uiState.update { it.copy(error = r.message) }
+                else -> {}
+            }
+        }
     }
 
     fun onRepayDebt(debtId: String) {
-        // TODO: открыть диалог погашения долга
+        viewModelScope.launch {
+            when (val r = debtRepository.markAsPaid(debtId)) {
+                is Result.Success -> _uiState.update { s ->
+                    s.copy(debts = s.debts.map { if (it.id == debtId) r.data else it })
+                }
+                is Result.Error -> _uiState.update { it.copy(error = r.message) }
+                else -> {}
+            }
+        }
+    }
+
+    fun deleteDebt(debtId: String) {
+        viewModelScope.launch {
+            debtRepository.deleteDebt(debtId)
+            _uiState.update { s -> s.copy(debts = s.debts.filter { it.id != debtId }) }
+        }
     }
 }

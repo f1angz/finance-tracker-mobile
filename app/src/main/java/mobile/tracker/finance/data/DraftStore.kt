@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.first
-import mobile.tracker.finance.data.models.TransactionCategory
 import mobile.tracker.finance.data.models.TransactionType
 import mobile.tracker.finance.ui.screens.operations.TransactionDraft
 
@@ -30,7 +29,7 @@ object DraftStore {
             p[TYPE_KEY]     = draft.type.name
             p[TITLE_KEY]    = draft.title
             p[AMOUNT_KEY]   = draft.amountText
-            p[CATEGORY_KEY] = draft.category?.name ?: ""
+            p[CATEGORY_KEY] = draft.categorySlug ?: ""
             p[DATE_KEY]     = draft.dateMillis
             p[COMMENT_KEY]  = draft.comment
         }
@@ -48,7 +47,7 @@ object DraftStore {
                 ?: TransactionType.EXPENSE,
             title      = title,
             amountText = amount,
-            category   = category.ifBlank { null }?.let { runCatching { TransactionCategory.valueOf(it) }.getOrNull() },
+            categorySlug = category.ifBlank { null },
             dateMillis = p[DATE_KEY] ?: System.currentTimeMillis(),
             comment    = comment
         )

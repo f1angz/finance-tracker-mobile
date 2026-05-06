@@ -12,35 +12,46 @@ import java.util.Locale
 
 // ─── ApiTransactionDto ↔ Transaction ──────────────────────────────────────────
 
-public fun ApiTransactionDto.toDomain(): Transaction = Transaction(
-    id = id ?: "",
-    title = title,
-    description = description,
-    amount = amount,
-    category = category.toTransactionCategory(),
-    date = date.toDateLabel(),
-    time = time,
-    type = type
-)
+public fun ApiTransactionDto.toDomain(): Transaction {
+    val knownEnum = category.toTransactionCategory()
+    val slug = if (knownEnum != TransactionCategory.OTHER) knownEnum.toSlug() else category.lowercase(Locale.getDefault())
+    val name = if (knownEnum != TransactionCategory.OTHER) knownEnum.displayName
+               else category.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+    return Transaction(
+        id           = id ?: "",
+        title        = title,
+        description  = description,
+        amount       = amount,
+        categorySlug = slug,
+        categoryName = name,
+        date         = date.toDateLabel(),
+        time         = time,
+        type         = type
+    )
+}
 
 public fun Transaction.toApiDto(): ApiTransactionDto = ApiTransactionDto(
-    id = id.ifBlank { null },
-    title = title,
+    id          = id.ifBlank { null },
+    title       = title,
     description = description,
-    amount = kotlin.math.abs(amount),
-    category = category.toSlug(),
-    date = date.toIsoDate(),
-    time = time,
-    type = type
+    amount      = kotlin.math.abs(amount),
+    category    = categorySlug,
+    date        = date.toIsoDate(),
+    time        = time,
+    type        = type
 )
 
 // ─── ApiCategoryExpenseDto → CategoryExpense ──────────────────────────────────
 
-fun ApiCategoryExpenseDto.toDomain(): CategoryExpense = CategoryExpense(
-    category = category.toTransactionCategory(),
-    amount = amount,
-    percentage = percentage
-)
+fun ApiCategoryExpenseDto.toDomain(): CategoryExpense {
+    val name = categoryName?.takeIf { it.isNotBlank() }
+        ?: run {
+            val knownEnum = category.toTransactionCategory()
+            if (knownEnum != TransactionCategory.OTHER) knownEnum.displayName
+            else category.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+        }
+    return CategoryExpense(categoryName = name, amount = amount, percentage = percentage)
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

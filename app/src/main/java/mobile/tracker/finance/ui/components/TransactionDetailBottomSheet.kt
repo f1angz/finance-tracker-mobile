@@ -1,5 +1,6 @@
 package mobile.tracker.finance.ui.components
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,6 +27,7 @@ import mobile.tracker.finance.data.models.TransactionType
 import mobile.tracker.finance.ui.theme.*
 import java.text.DecimalFormat
 
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TransactionDetailBottomSheet(
@@ -207,7 +209,7 @@ fun TransactionDetailBottomSheet(
                                 .padding(horizontal = 16.dp, vertical = 8.dp)
                         ) {
                             Text(
-                                text = transaction.category.displayName,
+                                text = transaction.categoryName,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = Color(0xFF364153)

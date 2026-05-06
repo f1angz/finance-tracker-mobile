@@ -22,11 +22,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.async
+import mobile.tracker.finance.data.models.Category
+import mobile.tracker.finance.data.models.CategoryFilter
 import mobile.tracker.finance.data.models.Transaction
-import mobile.tracker.finance.data.models.TransactionCategory
 import mobile.tracker.finance.data.models.TransactionType
+import mobile.tracker.finance.data.repository.ApiCategoryRepository
+import mobile.tracker.finance.ui.screens.categories.categoryIconConfig
 import mobile.tracker.finance.ui.screens.operations.TransactionDraft
 import mobile.tracker.finance.ui.theme.*
+import mobile.tracker.finance.utils.Result
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -38,11 +43,10 @@ fun AddTransactionBottomSheet(
     initialDraft: TransactionDraft? = null,
     onDraftSave: ((TransactionDraft) -> Unit)? = null
 ) {
-
     var selectedType by remember { mutableStateOf(initialDraft?.type ?: TransactionType.EXPENSE) }
     var title by remember { mutableStateOf(initialDraft?.title ?: "") }
     var amountText by remember { mutableStateOf(initialDraft?.amountText ?: "") }
-    var selectedCategory by remember { mutableStateOf<TransactionCategory?>(initialDraft?.category) }
+    var selectedCategorySlug by remember { mutableStateOf<String?>(initialDraft?.categorySlug) }
     var selectedDate by remember {
         mutableStateOf(Calendar.getInstance().apply {
             timeInMillis = initialDraft?.dateMillis ?: System.currentTimeMillis()
@@ -50,13 +54,28 @@ fun AddTransactionBottomSheet(
     }
     var comment by remember { mutableStateOf(initialDraft?.comment ?: "") }
 
+    var expenseCategories by remember { mutableStateOf<List<Category>>(emptyList()) }
+    var incomeCategories by remember { mutableStateOf<List<Category>>(emptyList()) }
+    var categoriesLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        val repo = ApiCategoryRepository()
+        val expenseDeferred = async { repo.getCategories(CategoryFilter.EXPENSE) }
+        val incomeDeferred  = async { repo.getCategories(CategoryFilter.INCOME) }
+        val expenseResult = expenseDeferred.await()
+        val incomeResult  = incomeDeferred.await()
+        if (expenseResult is Result.Success) expenseCategories = expenseResult.data
+        if (incomeResult  is Result.Success) incomeCategories  = incomeResult.data
+        categoriesLoading = false
+    }
+
     fun buildDraft() = TransactionDraft(
-        type       = selectedType,
-        title      = title,
-        amountText = amountText,
-        category   = selectedCategory,
-        dateMillis = selectedDate.timeInMillis,
-        comment    = comment
+        type         = selectedType,
+        title        = title,
+        amountText   = amountText,
+        categorySlug = selectedCategorySlug,
+        dateMillis   = selectedDate.timeInMillis,
+        comment      = comment
     )
 
     fun handleDismiss() {
@@ -73,20 +92,26 @@ fun AddTransactionBottomSheet(
         shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
     ) {
         AddTransactionContent(
-            selectedType     = selectedType,
-            title            = title,
-            amountText       = amountText,
-            selectedCategory = selectedCategory,
-            selectedDate     = selectedDate,
-            comment          = comment,
-            onTypeChange     = { selectedType = it },
-            onTitleChange    = { title = it },
-            onAmountChange   = { amountText = it },
-            onCategoryChange = { selectedCategory = it },
-            onDateChange     = { selectedDate = it },
-            onCommentChange  = { comment = it },
-            onClose          = { handleDismiss() },
-            onSave           = { transaction ->
+            selectedType         = selectedType,
+            title                = title,
+            amountText           = amountText,
+            selectedCategorySlug = selectedCategorySlug,
+            selectedDate         = selectedDate,
+            comment              = comment,
+            expenseCategories    = expenseCategories,
+            incomeCategories     = incomeCategories,
+            categoriesLoading    = categoriesLoading,
+            onTypeChange         = { newType ->
+                selectedType = newType
+                selectedCategorySlug = null
+            },
+            onTitleChange        = { title = it },
+            onAmountChange       = { amountText = it },
+            onCategoryChange     = { selectedCategorySlug = it },
+            onDateChange         = { selectedDate = it },
+            onCommentChange      = { comment = it },
+            onClose              = { handleDismiss() },
+            onSave               = { transaction ->
                 onSave(transaction)
                 onDismiss()
             }
@@ -100,13 +125,16 @@ private fun AddTransactionContent(
     selectedType: TransactionType,
     title: String,
     amountText: String,
-    selectedCategory: TransactionCategory?,
+    selectedCategorySlug: String?,
     selectedDate: Calendar,
     comment: String,
+    expenseCategories: List<Category>,
+    incomeCategories: List<Category>,
+    categoriesLoading: Boolean,
     onTypeChange: (TransactionType) -> Unit,
     onTitleChange: (String) -> Unit,
     onAmountChange: (String) -> Unit,
-    onCategoryChange: (TransactionCategory?) -> Unit,
+    onCategoryChange: (String?) -> Unit,
     onDateChange: (Calendar) -> Unit,
     onCommentChange: (String) -> Unit,
     onClose: () -> Unit,
@@ -116,11 +144,20 @@ private fun AddTransactionContent(
     val colors = LocalAppColors.current
     var categoryExpanded by remember { mutableStateOf(false) }
 
+    val availableCategories = if (selectedType == TransactionType.EXPENSE) expenseCategories else incomeCategories
+
+    val selectedCategoryName = remember(selectedCategorySlug, availableCategories) {
+        availableCategories.find { it.slug == selectedCategorySlug }?.name
+            ?: selectedCategorySlug?.replaceFirstChar {
+                if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
+            }
+    }
+
     val dateFormatter = remember { SimpleDateFormat("dd MMMM yyyy", Locale("ru")) }
     val displayDate = remember(selectedDate) { dateFormatter.format(selectedDate.time) }
 
     Column(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.93f)) {
-        // ── Header ──
+        // Header
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -147,7 +184,7 @@ private fun AddTransactionContent(
         }
         HorizontalDivider(color = colors.cardBorder)
 
-        // ── Scrollable form ──
+        // Scrollable form
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -156,32 +193,32 @@ private fun AddTransactionContent(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Type toggle: Расход | Доход
+            // Type toggle
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 TransactionTypeButton(
-                    label = "Расход",
-                    icon = Icons.Default.TrendingDown,
-                    isSelected = selectedType == TransactionType.EXPENSE,
-                    selectedBg = Color(0xFFFEF2F2),
-                    selectedBorder = Color(0xFFFB2C36),
-                    selectedIconTint = Color(0xFFE7000B),
-                    selectedTextColor = Color(0xFF82181A),
-                    modifier = Modifier.weight(1f),
-                    onClick = { onTypeChange(TransactionType.EXPENSE) }
+                    label           = "Расход",
+                    icon            = Icons.Default.TrendingDown,
+                    isSelected      = selectedType == TransactionType.EXPENSE,
+                    selectedBg      = Color(0xFFFEF2F2),
+                    selectedBorder  = Color(0xFFFB2C36),
+                    selectedIconTint    = Color(0xFFE7000B),
+                    selectedTextColor   = Color(0xFF82181A),
+                    modifier        = Modifier.weight(1f),
+                    onClick         = { onTypeChange(TransactionType.EXPENSE) }
                 )
                 TransactionTypeButton(
-                    label = "Доход",
-                    icon = Icons.Default.TrendingUp,
-                    isSelected = selectedType == TransactionType.INCOME,
-                    selectedBg = Color(0xFFF0FDF4),
-                    selectedBorder = Color(0xFF00A63E),
-                    selectedIconTint = Color(0xFF00A63E),
-                    selectedTextColor = Color(0xFF008236),
-                    modifier = Modifier.weight(1f),
-                    onClick = { onTypeChange(TransactionType.INCOME) }
+                    label           = "Доход",
+                    icon            = Icons.Default.TrendingUp,
+                    isSelected      = selectedType == TransactionType.INCOME,
+                    selectedBg      = Color(0xFFF0FDF4),
+                    selectedBorder  = Color(0xFF00A63E),
+                    selectedIconTint    = Color(0xFF00A63E),
+                    selectedTextColor   = Color(0xFF008236),
+                    modifier        = Modifier.weight(1f),
+                    onClick         = { onTypeChange(TransactionType.INCOME) }
                 )
             }
 
@@ -206,16 +243,14 @@ private fun AddTransactionContent(
                     singleLine = true,
                     colors = TextFieldDefaults.colors(
                         unfocusedContainerColor = colors.inputBackground,
-                        focusedContainerColor = colors.inputBackground,
+                        focusedContainerColor   = colors.inputBackground,
                         unfocusedIndicatorColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedTextColor = colors.textPrimary,
-                        focusedTextColor = colors.textPrimary
+                        focusedIndicatorColor   = Color.Transparent,
+                        unfocusedTextColor      = colors.textPrimary,
+                        focusedTextColor        = colors.textPrimary
                     ),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
+                    shape    = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth().height(56.dp)
                 )
             }
 
@@ -244,22 +279,19 @@ private fun AddTransactionContent(
                     singleLine = true,
                     colors = TextFieldDefaults.colors(
                         unfocusedContainerColor = colors.inputBackground,
-                        focusedContainerColor = colors.inputBackground,
+                        focusedContainerColor   = colors.inputBackground,
                         unfocusedIndicatorColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedTextColor = colors.textPrimary,
-                        focusedTextColor = colors.textPrimary
+                        focusedIndicatorColor   = Color.Transparent,
+                        unfocusedTextColor      = colors.textPrimary,
+                        focusedTextColor        = colors.textPrimary
                     ),
                     textStyle = LocalTextStyle.current.copy(
-                        fontSize = 24.sp,
+                        fontSize   = 24.sp,
                         fontWeight = FontWeight.SemiBold
                     ),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
+                    shape    = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth().height(56.dp)
                 )
-                // Quick amount buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -293,8 +325,8 @@ private fun AddTransactionContent(
                     color = colors.textPrimary
                 )
                 ExposedDropdownMenuBox(
-                    expanded = categoryExpanded,
-                    onExpandedChange = { categoryExpanded = it }
+                    expanded = categoryExpanded && availableCategories.isNotEmpty(),
+                    onExpandedChange = { if (availableCategories.isNotEmpty()) categoryExpanded = it }
                 ) {
                     Row(
                         modifier = Modifier
@@ -305,29 +337,96 @@ private fun AddTransactionContent(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = selectedCategory?.displayName ?: "Выберите категорию",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = if (selectedCategory != null) colors.textPrimary else colors.textSecondary
-                        )
-                        Icon(
-                            imageVector = Icons.Default.KeyboardArrowDown,
-                            contentDescription = null,
-                            tint = colors.textSecondary,
-                            modifier = Modifier.size(16.dp)
-                        )
+                        when {
+                            categoriesLoading -> {
+                                Text(
+                                    text = "Загрузка категорий...",
+                                    fontSize = 14.sp,
+                                    color = colors.textSecondary
+                                )
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = PrimaryBlue
+                                )
+                            }
+                            availableCategories.isEmpty() -> {
+                                Text(
+                                    text = "Нет категорий для этого типа",
+                                    fontSize = 14.sp,
+                                    color = colors.textSecondary
+                                )
+                            }
+                            else -> {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    if (selectedCategorySlug != null) {
+                                        val cfg = categoryIconConfig(selectedCategorySlug, selectedCategoryName ?: "")
+                                        Box(
+                                            modifier = Modifier
+                                                .size(28.dp)
+                                                .background(cfg.bgColor, RoundedCornerShape(6.dp)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = cfg.icon,
+                                                contentDescription = null,
+                                                tint = cfg.iconColor,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+                                    Text(
+                                        text = selectedCategoryName ?: "Выберите категорию",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = if (selectedCategorySlug != null) colors.textPrimary else colors.textSecondary
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.Default.KeyboardArrowDown,
+                                    contentDescription = null,
+                                    tint = colors.textSecondary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
                     }
                     ExposedDropdownMenu(
-                        expanded = categoryExpanded,
+                        expanded = categoryExpanded && availableCategories.isNotEmpty(),
                         onDismissRequest = { categoryExpanded = false },
                         modifier = Modifier.background(colors.cardBackground)
                     ) {
-                        TransactionCategory.entries.forEach { category ->
+                        availableCategories.forEach { category ->
+                            val cfg = categoryIconConfig(category.slug, category.name)
                             DropdownMenuItem(
-                                text = { Text(text = category.displayName) },
+                                leadingIcon = {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .background(cfg.bgColor, RoundedCornerShape(8.dp)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = cfg.icon,
+                                            contentDescription = null,
+                                            tint = cfg.iconColor,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                },
+                                text = {
+                                    Text(
+                                        text = category.name,
+                                        fontSize = 14.sp,
+                                        color = colors.textPrimary
+                                    )
+                                },
                                 onClick = {
-                                    onCategoryChange(category)
+                                    onCategoryChange(category.slug)
                                     categoryExpanded = false
                                 }
                             )
@@ -398,13 +497,13 @@ private fun AddTransactionContent(
                     },
                     colors = TextFieldDefaults.colors(
                         unfocusedContainerColor = colors.inputBackground,
-                        focusedContainerColor = colors.inputBackground,
+                        focusedContainerColor   = colors.inputBackground,
                         unfocusedIndicatorColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedTextColor = colors.textPrimary,
-                        focusedTextColor = colors.textPrimary
+                        focusedIndicatorColor   = Color.Transparent,
+                        unfocusedTextColor      = colors.textPrimary,
+                        focusedTextColor        = colors.textPrimary
                     ),
-                    shape = RoundedCornerShape(8.dp),
+                    shape    = RoundedCornerShape(8.dp),
                     minLines = 3,
                     maxLines = 4,
                     modifier = Modifier.fillMaxWidth()
@@ -414,7 +513,7 @@ private fun AddTransactionContent(
             Spacer(modifier = Modifier.height(4.dp))
         }
 
-        // ── Footer ──
+        // Footer
         HorizontalDivider(color = colors.cardBorder)
         Box(
             modifier = Modifier
@@ -424,26 +523,27 @@ private fun AddTransactionContent(
             Button(
                 onClick = {
                     val amount = amountText.toDoubleOrNull() ?: 0.0
-                    if (amount > 0 && selectedCategory != null && title.isNotBlank()) {
+                    val slug   = selectedCategorySlug
+                    val name   = selectedCategoryName
+                    if (amount > 0 && slug != null && name != null && title.isNotBlank()) {
                         val timeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
                         onSave(
                             Transaction(
-                                id = "",
-                                title = title.trim(),
-                                description = comment,
-                                amount = amount,
-                                category = selectedCategory!!,
-                                date = getDateLabel(selectedDate),
-                                time = timeFormatter.format(Calendar.getInstance().time),
-                                type = selectedType
+                                id           = "",
+                                title        = title.trim(),
+                                description  = comment,
+                                amount       = amount,
+                                categorySlug = slug,
+                                categoryName = name,
+                                date         = getDateLabel(selectedDate),
+                                time         = timeFormatter.format(Calendar.getInstance().time),
+                                type         = selectedType
                             )
                         )
                     }
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                shape  = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
             ) {
                 Text(
@@ -492,15 +592,15 @@ private fun TransactionTypeButton(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (isSelected) selectedIconTint else colors.textSecondary,
+                tint     = if (isSelected) selectedIconTint else colors.textSecondary,
                 modifier = Modifier.size(28.dp)
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = label,
-                fontSize = 16.sp,
+                text       = label,
+                fontSize   = 16.sp,
                 fontWeight = FontWeight.Medium,
-                color = if (isSelected) selectedTextColor else colors.textSecondary
+                color      = if (isSelected) selectedTextColor else colors.textSecondary
             )
         }
     }

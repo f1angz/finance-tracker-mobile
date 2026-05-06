@@ -14,69 +14,135 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import mobile.tracker.finance.data.models.CategoryExpense
-import mobile.tracker.finance.ui.theme.CardBackground
 import mobile.tracker.finance.ui.theme.LocalAppColors
-import mobile.tracker.finance.ui.theme.TextPrimary
-import mobile.tracker.finance.ui.theme.TextSecondary
-import kotlin.math.cos
-import kotlin.math.sin
+import java.text.DecimalFormat
+
+// Палитра для диаграммы — достаточно цветов для любого числа категорий
+internal val pieChartColors = listOf(
+    Color(0xFF4F46E5),
+    Color(0xFF10B981),
+    Color(0xFFEC4899),
+    Color(0xFFF59E0B),
+    Color(0xFF3B82F6),
+    Color(0xFF7C3AED),
+    Color(0xFFEF4444),
+    Color(0xFF14B8A6),
+    Color(0xFF8B5CF6),
+    Color(0xFF06B6D4),
+    Color(0xFFEA580C),
+    Color(0xFF65A30D),
+)
+
+private const val MAX_SLICES = 6
 
 /**
- * Круговая диаграмма расходов по категориям
- * @param expenses Список расходов по категориям
+ * Секция круговой диаграммы расходов по категориям.
+ * Топ-[MAX_SLICES] категорий, остаток — "Прочие".
  */
 @Composable
 fun PieChartSection(
     expenses: List<CategoryExpense>,
     modifier: Modifier = Modifier
 ) {
+    if (expenses.isEmpty()) return
+
+    val colors = LocalAppColors.current
+    val fmt    = DecimalFormat("#,###")
+
+    // Ограничиваем до MAX_SLICES, остаток объединяем
+    val sorted  = expenses.sortedByDescending { it.amount }
+    val topN    = sorted.take(MAX_SLICES)
+    val rest    = sorted.drop(MAX_SLICES)
+    val display = if (rest.isEmpty()) topN
+    else topN + CategoryExpense(
+        categoryName = "Прочие",
+        amount       = rest.sumOf { it.amount },
+        percentage   = rest.sumOf { it.percentage.toDouble() }.toFloat()
+    )
+
+    val total = display.sumOf { it.amount }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(LocalAppColors.current.cardBackground, RoundedCornerShape(16.dp))
+            .background(colors.cardBackground, RoundedCornerShape(16.dp))
             .padding(16.dp)
     ) {
-        Column {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text(
-                text = "Расходы по категориям",
-                fontSize = 16.sp,
+                text       = "Расходы по категориям",
+                fontSize   = 16.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = LocalAppColors.current.textPrimary
+                color      = colors.textPrimary
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
-
             BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                val chartSize = (maxWidth * 0.38f).coerceIn(80.dp, 160.dp)
+                val chartSize = (maxWidth * 0.38f).coerceIn(80.dp, 150.dp)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Диаграмма
+                    // Donut chart
                     Box(
-                        modifier = Modifier.size(chartSize),
+                        modifier         = Modifier.size(chartSize),
                         contentAlignment = Alignment.Center
                     ) {
-                        PieChart(expenses = expenses, chartSize = chartSize)
+                        DonutChart(slices = display, chartSize = chartSize)
+                        // Сумма в центре
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text       = "₽${fmt.format(total.toLong())}",
+                                fontSize   = (chartSize.value * 0.1f).coerceIn(9f, 14f).sp,
+                                fontWeight = FontWeight.Bold,
+                                color      = colors.textPrimary
+                            )
+                            Text(
+                                text     = "всего",
+                                fontSize = (chartSize.value * 0.08f).coerceIn(8f, 11f).sp,
+                                color    = colors.textSecondary
+                            )
+                        }
                     }
-
-                    Spacer(modifier = Modifier.width(16.dp))
 
                     // Легенда
                     Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier            = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        expenses.forEach { expense ->
-                            LegendItem(
-                                color = Color(expense.category.color),
-                                label = expense.category.displayName
-                            )
+                        display.forEachIndexed { idx, expense ->
+                            val color = pieChartColors[idx % pieChartColors.size]
+                            Row(
+                                verticalAlignment     = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(10.dp)
+                                        .background(color, CircleShape)
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text     = expense.categoryName,
+                                        fontSize = 12.sp,
+                                        color    = colors.textPrimary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text     = "₽${fmt.format(expense.amount.toLong())}  ${
+                                            "%.1f".format(expense.percentage)
+                                        }%",
+                                        fontSize = 11.sp,
+                                        color    = colors.textSecondary
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -85,67 +151,27 @@ fun PieChartSection(
     }
 }
 
-/**
- * Компонент круговой диаграммы
- */
 @Composable
-private fun PieChart(expenses: List<CategoryExpense>, chartSize: Dp = 160.dp) {
+private fun DonutChart(slices: List<CategoryExpense>, chartSize: Dp) {
     Canvas(modifier = Modifier.size(chartSize)) {
-        val totalPercentage = expenses.sumOf { it.percentage.toDouble() }.toFloat()
-        var startAngle = -90f
-        val strokeWidth = (chartSize.toPx() * 0.2f).coerceIn(16f, 32f)
-        val radius = (size.minDimension - strokeWidth) / 2
+        val totalPct  = slices.sumOf { it.percentage.toDouble() }.toFloat().takeIf { it > 0f } ?: 1f
+        val stroke    = (chartSize.toPx() * 0.18f).coerceIn(14f, 28f)
+        val radius    = (size.minDimension - stroke) / 2f
+        val topLeft   = Offset((size.width - radius * 2) / 2f, (size.height - radius * 2) / 2f)
+        var angle     = -90f
 
-        expenses.forEach { expense ->
-            val sweepAngle = (expense.percentage / totalPercentage) * 360f
-
+        slices.forEachIndexed { idx, slice ->
+            val sweep = (slice.percentage / totalPct) * 360f
             drawArc(
-                color = Color(expense.category.color),
-                startAngle = startAngle,
-                sweepAngle = sweepAngle,
-                useCenter = false,
-                topLeft = Offset(
-                    (size.width - radius * 2) / 2,
-                    (size.height - radius * 2) / 2
-                ),
-                size = Size(radius * 2, radius * 2),
-                style = Stroke(width = strokeWidth)
+                color      = pieChartColors[idx % pieChartColors.size],
+                startAngle = angle,
+                sweepAngle = sweep,
+                useCenter  = false,
+                topLeft    = topLeft,
+                size       = Size(radius * 2f, radius * 2f),
+                style      = Stroke(width = stroke)
             )
-
-            startAngle += sweepAngle
+            angle += sweep
         }
-
-        // Белый круг в центре
-        drawCircle(
-            color = Color.White,
-            radius = radius - strokeWidth / 2,
-            center = center
-        )
-    }
-}
-
-/**
- * Элемент легенды
- */
-@Composable
-private fun LegendItem(
-    color: Color,
-    label: String
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(12.dp)
-                .background(color, CircleShape)
-        )
-        Text(
-            text = label,
-            fontSize = 12.sp,
-            color = LocalAppColors.current.textSecondary,
-            fontWeight = FontWeight.Normal
-        )
     }
 }

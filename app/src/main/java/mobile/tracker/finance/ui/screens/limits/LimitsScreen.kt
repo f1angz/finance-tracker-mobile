@@ -5,12 +5,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,6 +26,7 @@ import mobile.tracker.finance.data.models.LimitStatus
 import mobile.tracker.finance.navigation.Screen
 import mobile.tracker.finance.ui.components.AddTransactionBottomSheet
 import mobile.tracker.finance.ui.components.BottomNavBar
+import mobile.tracker.finance.ui.components.GradientBackground
 import mobile.tracker.finance.ui.screens.operations.DraftViewModel
 import mobile.tracker.finance.ui.theme.*
 
@@ -74,8 +71,9 @@ fun LimitsScreen(
         )
     }
 
+    GradientBackground {
     Scaffold(
-        topBar = { LimitsTopBar(onAddClick = { showAddDialog = true }) },
+        topBar = { LimitsTopBar() },
         bottomBar = {
             BottomNavBar(
                 selectedTab = 3,
@@ -101,7 +99,7 @@ fun LimitsScreen(
                 }
             )
         },
-        containerColor = LocalAppColors.current.background
+        containerColor = Color.Transparent
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -162,75 +160,26 @@ fun LimitsScreen(
             }
         }
     }
+    }
 }
 
 // ─── Top Bar ─────────────────────────────────────────────────────────────────
 
 @Composable
-private fun LimitsTopBar(onAddClick: () -> Unit) {
+private fun LimitsTopBar() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(CardBackground)
+            .background(Color.Transparent)
             .statusBarsPadding()
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                IconButton(onClick = { /* TODO: боковое меню */ }) {
-                    Icon(
-                        imageVector = Icons.Default.Menu,
-                        contentDescription = "Меню",
-                        tint = TextPrimary
-                    )
-                }
-                Text(
-                    text = "Лимиты",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
-            }
-
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Box {
-                    IconButton(onClick = { /* TODO: уведомления */ }) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Уведомления",
-                            tint = TextPrimary
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .offset(x = (-8).dp, y = 8.dp)
-                            .size(8.dp)
-                            .background(RedNegative, CircleShape)
-                    )
-                }
-
-                IconButton(
-                    onClick = onAddClick,
-                    modifier = Modifier.background(PrimaryBlue, CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Добавить лимит",
-                        tint = White
-                    )
-                }
-            }
-        }
-
+        Text(
+            text = "Лимиты",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = TextPrimary,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+        )
         HorizontalDivider(color = HeaderBorder, thickness = 1.dp)
     }
 }

@@ -73,6 +73,12 @@ interface ApiService {
     @POST("categories")
     suspend fun createCategory(@Body category: Category): Response<Category>
 
+    @PUT("categories/{id}")
+    suspend fun updateCategory(
+        @Path("id") id: String,
+        @Body category: Category
+    ): Response<Category>
+
     @DELETE("categories/{id}")
     suspend fun deleteCategory(@Path("id") id: String): Response<Unit>
 

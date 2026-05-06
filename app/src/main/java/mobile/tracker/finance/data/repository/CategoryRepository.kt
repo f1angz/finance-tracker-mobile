@@ -19,4 +19,14 @@ interface CategoryRepository {
      * Добавить новую категорию
      */
     suspend fun addCategory(category: Category)
+
+    /**
+     * Обновить существующую категорию
+     */
+    suspend fun updateCategory(category: Category)
+
+    /**
+     * Удалить категорию по ID
+     */
+    suspend fun deleteCategory(id: String)
 }

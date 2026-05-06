@@ -46,6 +46,7 @@ import mobile.tracker.finance.data.models.InsightType
 import mobile.tracker.finance.navigation.Screen
 import mobile.tracker.finance.ui.components.AddTransactionBottomSheet
 import mobile.tracker.finance.ui.components.BottomNavBar
+import mobile.tracker.finance.ui.components.GradientBackground
 import mobile.tracker.finance.ui.screens.operations.DraftViewModel
 import mobile.tracker.finance.ui.theme.*
 
@@ -103,8 +104,9 @@ fun AiAssistantScreen(
         )
     }
 
+    GradientBackground {
     Scaffold(
-        topBar = { AiTopBar(onAddClick = { showAddDialog = true }) },
+        topBar = { AiTopBar() },
         bottomBar = {
             BottomNavBar(
                 selectedTab = 3,
@@ -130,7 +132,7 @@ fun AiAssistantScreen(
                 }
             )
         },
-        containerColor = LocalAppColors.current.background
+        containerColor = Color.Transparent
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -183,6 +185,7 @@ fun AiAssistantScreen(
             ) { Text(text = error) }
         }
     }
+    }
 
     val selectedTip = uiState.selectedTip
     if (selectedTip != null) {
@@ -198,69 +201,21 @@ fun AiAssistantScreen(
 // Верхняя панель
 
 @Composable
-private fun AiTopBar(onAddClick: () -> Unit) {
+private fun AiTopBar() {
     val colors = LocalAppColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(colors.cardBackground)
+            .background(Color.Transparent)
             .statusBarsPadding()
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                IconButton(onClick = { /* TODO: боковое меню */ }) {
-                    Icon(
-                        imageVector = Icons.Default.Menu,
-                        contentDescription = "Меню",
-                        tint = colors.textPrimary
-                    )
-                }
-                Text(
-                    text = "ИИ-Помощник",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.textPrimary
-                )
-            }
-
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Box {
-                    IconButton(onClick = { /* TODO: уведомления */ }) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Уведомления",
-                            tint = colors.textPrimary
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .offset(x = (-8).dp, y = 8.dp)
-                            .size(8.dp)
-                            .background(RedNegative, CircleShape)
-                    )
-                }
-                IconButton(
-                    onClick = onAddClick,
-                    modifier = Modifier.background(PrimaryBlue, CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Новый запрос",
-                        tint = White
-                    )
-                }
-            }
-        }
+        Text(
+            text = "ИИ-Помощник",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = colors.textPrimary,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+        )
         HorizontalDivider(color = colors.cardBorder, thickness = 1.dp)
     }
 }
@@ -407,7 +362,7 @@ private fun AiTabBar(
     modifier: Modifier = Modifier
 ) {
     val tabs = listOf(
-        AiTab.INSIGHTS to "Инсайты",
+        AiTab.INSIGHTS to "Выводы",
         AiTab.TIPS to "Советы",
         AiTab.CHAT to "Чат"
     )
@@ -517,7 +472,6 @@ private fun TipsContent(
                 items(tips, key = { it.id }) { tip ->
                     TipCard(tip = tip, onClick = { onTipClick(tip) })
                 }
-                item { TipPromoCard() }
                 item { Spacer(Modifier.height(8.dp)) }
             }
         }
@@ -857,58 +811,6 @@ private fun TipCard(tip: AiTip, onClick: () -> Unit = {}, modifier: Modifier = M
             tint = colors.textSecondary,
             modifier = Modifier.size(20.dp)
         )
-    }
-}
-
-
-@Composable
-private fun TipPromoCard() {
-    val colors = LocalAppColors.current
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(colors.cardBackground, RoundedCornerShape(14.dp))
-            .border(1.dp, colors.cardBorder, RoundedCornerShape(14.dp))
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Icon(
-            imageVector = Icons.Default.AutoAwesome,
-            contentDescription = null,
-            tint = AiPurple,
-            modifier = Modifier.size(32.dp)
-        )
-        Text(
-            text = "Персональные рекомендации",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            color = colors.textPrimary,
-            textAlign = TextAlign.Center
-        )
-        Text(
-            text = "Получайте умные советы на основе ваших данных",
-            fontSize = 12.sp,
-            color = colors.textSecondary,
-            textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(4.dp))
-        Box(
-            modifier = Modifier
-                .background(AiPurple, RoundedCornerShape(8.dp))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null
-                ) { /* TODO: создать план */ }
-                .padding(horizontal = 24.dp, vertical = 6.dp)
-        ) {
-            Text(
-                text = "Создать план",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color.White
-            )
-        }
     }
 }
 

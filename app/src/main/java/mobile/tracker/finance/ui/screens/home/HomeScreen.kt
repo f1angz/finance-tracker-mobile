@@ -1,9 +1,9 @@
 package mobile.tracker.finance.ui.screens.home
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -11,7 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -21,18 +20,27 @@ import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
 import mobile.tracker.finance.R
+import mobile.tracker.finance.data.models.CategoryExpense
+import mobile.tracker.finance.data.models.FinanceStats
 import mobile.tracker.finance.data.models.Transaction
 import mobile.tracker.finance.navigation.Screen
 import mobile.tracker.finance.ui.components.*
 import mobile.tracker.finance.ui.components.AddTransactionBottomSheet
+import mobile.tracker.finance.ui.components.pieChartColors
 import mobile.tracker.finance.ui.screens.operations.DraftViewModel
 import mobile.tracker.finance.ui.theme.*
+import java.text.DecimalFormat
 
 /**
  * Главный экран приложения Finance Tracker
  * Отображает финансовую статистику, диаграммы и последние транзакции
  */
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -62,14 +70,14 @@ fun HomeScreen(
         )
     }
 
+    GradientBackground {
     Scaffold(
         topBar = {
             HomeTopBar(
-                selectedMonth    = uiState.selectedMonth,
-                isNextDisabled   = uiState.selectedMonth >= HomeViewModel.currentMonthString(),
-                onPrevMonth      = viewModel::prevMonth,
-                onNextMonth      = viewModel::nextMonth,
-                onAddClick       = { showAddDialog = true }
+                selectedMonth  = uiState.selectedMonth,
+                isNextDisabled = uiState.selectedMonth >= HomeViewModel.currentMonthString(),
+                onPrevMonth    = viewModel::prevMonth,
+                onNextMonth    = viewModel::nextMonth,
             )
         },
         bottomBar = {
@@ -96,7 +104,7 @@ fun HomeScreen(
                 }
             )
         },
-        containerColor = LocalAppColors.current.background
+        containerColor = Color.Transparent
     ) { paddingValues ->
         if (uiState.isLoading && uiState.stats == null) {
             // Показываем индикатор загрузки только при первой загрузке
@@ -116,9 +124,13 @@ fun HomeScreen(
             ) {
                 val isWideScreen = maxWidth >= 600.dp
                 if (isWideScreen) {
-                    WideScreenContent(uiState = uiState)
+                    WideScreenContent(uiState = uiState, onSeeAllClick = {
+                        navController.navigate(Screen.Operations.route) { launchSingleTop = true }
+                    })
                 } else {
-                    CompactScreenContent(uiState = uiState)
+                    CompactScreenContent(uiState = uiState, onSeeAllClick = {
+                        navController.navigate(Screen.Operations.route) { launchSingleTop = true }
+                    })
                 }
             }
         }
@@ -133,10 +145,11 @@ fun HomeScreen(
             }
         }
     }
+    }
 }
 
 @Composable
-private fun CompactScreenContent(uiState: HomeUiState) {
+private fun CompactScreenContent(uiState: HomeUiState, onSeeAllClick: () -> Unit) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -184,19 +197,27 @@ private fun CompactScreenContent(uiState: HomeUiState) {
             }
         }
         item {
+            if (uiState.categoryExpenses.isNotEmpty()) {
+                TopCategoriesCard(expenses = uiState.categoryExpenses)
+            }
+        }
+        item {
+            uiState.stats?.let { SavingsRateCard(stats = it) }
+        }
+        item {
             if (uiState.monthlyStats.isNotEmpty()) {
                 BarChartSection(monthlyStats = uiState.monthlyStats)
             }
         }
         item {
-            RecentTransactionsCard(uiState.recentTransactions)
+            RecentTransactionsCard(uiState.recentTransactions, onSeeAllClick)
         }
         item { Spacer(modifier = Modifier.height(16.dp)) }
     }
 }
 
 @Composable
-private fun WideScreenContent(uiState: HomeUiState) {
+private fun WideScreenContent(uiState: HomeUiState, onSeeAllClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxSize()
@@ -245,7 +266,7 @@ private fun WideScreenContent(uiState: HomeUiState) {
                 }
             }
             item {
-                RecentTransactionsCard(uiState.recentTransactions)
+                RecentTransactionsCard(uiState.recentTransactions, onSeeAllClick)
             }
             item { Spacer(modifier = Modifier.height(16.dp)) }
         }
@@ -261,6 +282,14 @@ private fun WideScreenContent(uiState: HomeUiState) {
                 }
             }
             item {
+                if (uiState.categoryExpenses.isNotEmpty()) {
+                    TopCategoriesCard(expenses = uiState.categoryExpenses)
+                }
+            }
+            item {
+                uiState.stats?.let { SavingsRateCard(stats = it) }
+            }
+            item {
                 if (uiState.monthlyStats.isNotEmpty()) {
                     BarChartSection(monthlyStats = uiState.monthlyStats)
                 }
@@ -271,7 +300,7 @@ private fun WideScreenContent(uiState: HomeUiState) {
 }
 
 @Composable
-private fun RecentTransactionsCard(transactions: List<Transaction>) {
+private fun RecentTransactionsCard(transactions: List<Transaction>, onSeeAllClick: () -> Unit) {
     if (transactions.isEmpty()) return
     Box(
         modifier = Modifier
@@ -291,7 +320,7 @@ private fun RecentTransactionsCard(transactions: List<Transaction>) {
                     fontWeight = FontWeight.SemiBold,
                     color = LocalAppColors.current.textPrimary
                 )
-                TextButton(onClick = {}) {
+                TextButton(onClick = onSeeAllClick) {
                     Text(text = "Все", fontSize = 14.sp, color = PrimaryBlue)
                 }
             }
@@ -312,70 +341,20 @@ private fun HomeTopBar(
     isNextDisabled: Boolean,
     onPrevMonth: () -> Unit,
     onNextMonth: () -> Unit,
-    onAddClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(LocalAppColors.current.background)
+            .background(Color.Transparent)
             .statusBarsPadding()
     ) {
-        // ── Строка заголовка ──
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                IconButton(onClick = { }) {
-                    Icon(
-                        imageVector = Icons.Default.Menu,
-                        contentDescription = "Меню",
-                        tint = TextPrimary
-                    )
-                }
-                Text(
-                    text = "Главная",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = LocalAppColors.current.textPrimary
-                )
-            }
-
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Box {
-                    IconButton(onClick = { }) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Уведомления",
-                            tint = TextPrimary
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .offset(x = (-8).dp, y = 8.dp)
-                            .size(8.dp)
-                            .background(RedNegative, CircleShape)
-                    )
-                }
-                IconButton(
-                    onClick = onAddClick,
-                    modifier = Modifier.background(PrimaryBlue, CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Добавить",
-                        tint = White
-                    )
-                }
-            }
-        }
+        Text(
+            text = "Главная",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = LocalAppColors.current.textPrimary,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+        )
 
         // ── Навигатор месяца ──
         if (selectedMonth.isNotEmpty()) {
@@ -411,5 +390,201 @@ private fun HomeTopBar(
                 }
             }
         }
+    }
+}
+
+// ─── Топ расходов ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun TopCategoriesCard(
+    expenses: List<CategoryExpense>,
+    modifier: Modifier = Modifier
+) {
+    val colors = LocalAppColors.current
+    val fmt    = DecimalFormat("#,###")
+    val top    = expenses.sortedByDescending { it.amount }.take(5)
+    val maxAmt = top.firstOrNull()?.amount?.takeIf { it > 0 } ?: 1.0
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(colors.cardBackground, RoundedCornerShape(16.dp))
+            .padding(16.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text       = "Топ расходов",
+                fontSize   = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color      = colors.textPrimary
+            )
+            top.forEachIndexed { idx, expense ->
+                val barColor = pieChartColors[idx % pieChartColors.size]
+                val fill     = (expense.amount / maxAmt).toFloat().coerceIn(0f, 1f)
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(
+                        modifier              = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment     = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment     = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier              = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .background(barColor, CircleShape)
+                            )
+                            Text(
+                                text     = expense.categoryName,
+                                fontSize = 13.sp,
+                                color    = colors.textPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text     = "₽${fmt.format(expense.amount.toLong())}",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color    = colors.textPrimary
+                        )
+                    }
+                    // Горизонтальный бар
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(barColor.copy(alpha = 0.15f))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(fill)
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(barColor)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ─── Норма накоплений ─────────────────────────────────────────────────────────
+
+@Composable
+private fun SavingsRateCard(
+    stats: FinanceStats,
+    modifier: Modifier = Modifier
+) {
+    if (stats.income <= 0) return
+
+    val colors   = LocalAppColors.current
+    val fmt      = DecimalFormat("#,###")
+    val rate     = (stats.savings / stats.income * 100).coerceIn(0.0, 100.0).toFloat()
+    val barColor = when {
+        rate >= 20f -> GreenPositive
+        rate >= 10f -> Color(0xFFF59E0B)
+        else        -> RedNegative
+    }
+    val rateLabel = when {
+        rate >= 20f -> "Отлично"
+        rate >= 10f -> "Хорошо"
+        else        -> "Низкая"
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(colors.cardBackground, RoundedCornerShape(16.dp))
+            .padding(16.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                modifier              = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment     = Alignment.CenterVertically
+            ) {
+                Text(
+                    text       = "Норма накоплений",
+                    fontSize   = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color      = colors.textPrimary
+                )
+                Box(
+                    modifier = Modifier
+                        .background(barColor.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text       = rateLabel,
+                        fontSize   = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color      = barColor
+                    )
+                }
+            }
+
+            Row(
+                modifier          = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text       = "${"%.1f".format(rate)}%",
+                    fontSize   = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    color      = barColor
+                )
+                Text(
+                    text     = "от дохода сохранено",
+                    fontSize = 13.sp,
+                    color    = colors.textSecondary,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+            }
+
+            // Прогресс-бар
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(barColor.copy(alpha = 0.15f))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(rate / 100f)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(barColor)
+                )
+            }
+
+            // Детали
+            Row(
+                modifier              = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                LabelValue("Накоплено", "₽${fmt.format(stats.savings.toLong())}", colors.textPrimary)
+                LabelValue("Доход",    "₽${fmt.format(stats.income.toLong())}",   colors.textSecondary)
+                LabelValue("Расход",   "₽${fmt.format(stats.expense.toLong())}",  colors.textSecondary)
+            }
+        }
+    }
+}
+
+@Composable
+private fun LabelValue(label: String, value: String, valueColor: Color) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(text = label, fontSize = 11.sp, color = LocalAppColors.current.textSecondary)
+        Spacer(Modifier.height(2.dp))
+        Text(text = value, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = valueColor)
     }
 }

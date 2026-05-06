@@ -29,7 +29,7 @@ data class FinanceStats(
  * @param percentage Процент от общих расходов
  */
 data class CategoryExpense(
-    val category: TransactionCategory,
+    val categoryName: String,
     val amount: Double,
     val percentage: Float
 )

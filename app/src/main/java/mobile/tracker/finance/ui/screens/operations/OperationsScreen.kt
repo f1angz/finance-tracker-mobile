@@ -1,14 +1,19 @@
 package mobile.tracker.finance.ui.screens.operations
 
+import android.app.DatePickerDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -20,22 +25,32 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import kotlinx.coroutines.async
 import mobile.tracker.finance.R
+import mobile.tracker.finance.data.models.Category
+import mobile.tracker.finance.data.models.CategoryFilter
 import mobile.tracker.finance.data.models.Transaction
 import mobile.tracker.finance.data.models.TransactionFilter
 import mobile.tracker.finance.data.models.TransactionGroup
 import mobile.tracker.finance.data.models.TransactionType
+import mobile.tracker.finance.data.repository.ApiCategoryRepository
 import mobile.tracker.finance.navigation.Screen
 import mobile.tracker.finance.ui.components.AddTransactionBottomSheet
 import mobile.tracker.finance.ui.components.BottomNavBar
+import mobile.tracker.finance.ui.components.GradientBackground
 import mobile.tracker.finance.ui.components.TransactionDetailBottomSheet
+import mobile.tracker.finance.ui.screens.categories.categoryIconConfig
 import mobile.tracker.finance.ui.theme.*
+import mobile.tracker.finance.utils.Result
 import java.text.DecimalFormat
+import java.text.SimpleDateFormat
+import java.util.*
 
 /**
  * Экран "Операции" — список всех транзакций с фильтрацией и поиском
@@ -51,6 +66,7 @@ fun OperationsScreen(
     val draftViewModel: DraftViewModel = viewModel(context as ViewModelStoreOwner)
     val draft by draftViewModel.draft.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
+    var showFilterSheet by remember { mutableStateOf(false) }
     var selectedTransaction by remember { mutableStateOf<Transaction?>(null) }
 
     if (showAddDialog) {
@@ -59,6 +75,14 @@ fun OperationsScreen(
             onSave       = { viewModel.addTransaction(it); draftViewModel.clearDraft() },
             initialDraft = draft,
             onDraftSave  = draftViewModel::saveDraft
+        )
+    }
+
+    if (showFilterSheet) {
+        FilterBottomSheet(
+            currentFilter = uiState.extraFilter,
+            onApply       = { viewModel.onExtraFilterChanged(it); showFilterSheet = false },
+            onDismiss     = { showFilterSheet = false }
         )
     }
 
@@ -73,8 +97,22 @@ fun OperationsScreen(
         )
     }
 
+    GradientBackground {
     Scaffold(
-        topBar = { OperationsTopBar(onAddClick = { showAddDialog = true }) },
+        topBar = { OperationsTopBar() },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { showAddDialog = true },
+                containerColor = PrimaryBlue,
+                contentColor = White,
+                shape = CircleShape
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Добавить операцию"
+                )
+            }
+        },
         bottomBar = {
             BottomNavBar(
                 selectedTab = 1,
@@ -100,7 +138,7 @@ fun OperationsScreen(
                 }
             )
         },
-        containerColor = LocalAppColors.current.background
+        containerColor = Color.Transparent
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -110,8 +148,10 @@ fun OperationsScreen(
             Spacer(Modifier.height(8.dp))
 
             SearchAndFilterBar(
-                query = uiState.searchQuery,
-                onQueryChange = viewModel::onSearchQueryChanged
+                query            = uiState.searchQuery,
+                onQueryChange    = viewModel::onSearchQueryChanged,
+                hasActiveFilters = uiState.extraFilter.isActive,
+                onFilterClick    = { showFilterSheet = true }
             )
 
             Spacer(Modifier.height(12.dp))
@@ -173,71 +213,25 @@ fun OperationsScreen(
             }
         }
     }
+    }
 }
 
 // ─── Top Bar ─────────────────────────────────────────────────────────────────
 
 @Composable
-private fun OperationsTopBar(onAddClick: () -> Unit) {
+private fun OperationsTopBar() {
     val colors = LocalAppColors.current
-    Row(
+    Text(
+        text = "Операции",
+        fontSize = 20.sp,
+        fontWeight = FontWeight.Bold,
+        color = colors.textPrimary,
         modifier = Modifier
             .fillMaxWidth()
-            .background(colors.background)
+            .background(Color.Transparent)
             .statusBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            IconButton(onClick = { }) {
-                Icon(
-                    imageVector = Icons.Default.Menu,
-                    contentDescription = "Меню",
-                    tint = colors.textPrimary
-                )
-            }
-            Text(
-                text = "Операции",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = colors.textPrimary
-            )
-        }
-
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Box {
-                IconButton(onClick = { }) {
-                    Icon(
-                        imageVector = Icons.Default.Notifications,
-                        contentDescription = "Уведомления",
-                        tint = colors.textPrimary
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .offset(x = (-8).dp, y = 8.dp)
-                        .size(8.dp)
-                        .background(RedNegative, CircleShape)
-                )
-            }
-
-            IconButton(
-                onClick = onAddClick,
-                modifier = Modifier.background(PrimaryBlue, CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Добавить операцию",
-                    tint = White
-                )
-            }
-        }
-    }
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+    )
 }
 
 // ─── Search & Filter bar ──────────────────────────────────────────────────────
@@ -246,8 +240,11 @@ private fun OperationsTopBar(onAddClick: () -> Unit) {
 @Composable
 private fun SearchAndFilterBar(
     query: String,
-    onQueryChange: (String) -> Unit
+    onQueryChange: (String) -> Unit,
+    hasActiveFilters: Boolean,
+    onFilterClick: () -> Unit
 ) {
+    val colors = LocalAppColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -259,11 +256,7 @@ private fun SearchAndFilterBar(
             value = query,
             onValueChange = onQueryChange,
             placeholder = {
-                Text(
-                    text = "Поиск операций...",
-                    color = BottomNavUnselected,
-                    fontSize = 14.sp
-                )
+                Text(text = "Поиск операций...", color = BottomNavUnselected, fontSize = 14.sp)
             },
             leadingIcon = {
                 Icon(
@@ -275,35 +268,37 @@ private fun SearchAndFilterBar(
             },
             shape = RoundedCornerShape(12.dp),
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = LocalAppColors.current.inputBackground,
-                unfocusedContainerColor = LocalAppColors.current.inputBackground,
-                focusedIndicatorColor = Color.Transparent,
+                focusedContainerColor   = colors.inputBackground,
+                unfocusedContainerColor = colors.inputBackground,
+                focusedIndicatorColor   = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
-                disabledIndicatorColor = Color.Transparent,
-                cursorColor = PrimaryBlue,
-                focusedTextColor = LocalAppColors.current.textPrimary,
-                unfocusedTextColor = LocalAppColors.current.textPrimary
+                disabledIndicatorColor  = Color.Transparent,
+                cursorColor             = PrimaryBlue,
+                focusedTextColor        = colors.textPrimary,
+                unfocusedTextColor      = colors.textPrimary
             ),
-            modifier = Modifier
-                .weight(1f)
-                .height(50.dp),
+            modifier  = Modifier.weight(1f).height(50.dp),
             singleLine = true
         )
 
-        // Filter icon button
+        // Кнопка фильтра — с точкой-индикатором, если есть активные фильтры
         Box(
             modifier = Modifier
                 .size(50.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(LocalAppColors.current.cardBackground)
-                .border(1.dp, LocalAppColors.current.cardBorder, RoundedCornerShape(12.dp))
-                .clickable { },
+                .background(if (hasActiveFilters) PrimaryBlue else colors.cardBackground)
+                .border(
+                    1.dp,
+                    if (hasActiveFilters) PrimaryBlue else colors.cardBorder,
+                    RoundedCornerShape(12.dp)
+                )
+                .clickable(onClick = onFilterClick),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 painter = painterResource(R.drawable.filter_list),
                 contentDescription = "Фильтры",
-                tint = LocalAppColors.current.textPrimary,
+                tint = if (hasActiveFilters) White else colors.textPrimary,
                 modifier = Modifier.size(22.dp)
             )
         }
@@ -521,5 +516,307 @@ private fun OperationsTransactionItem(
             fontWeight = FontWeight.Bold,
             color = amountColor
         )
+    }
+}
+
+// ─── Filter Bottom Sheet ──────────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FilterBottomSheet(
+    currentFilter: OperationsExtraFilter,
+    onApply: (OperationsExtraFilter) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val colors  = LocalAppColors.current
+
+    var datePreset   by remember { mutableStateOf(currentFilter.datePreset) }
+    var dateFrom     by remember { mutableStateOf(currentFilter.dateFrom) }
+    var dateTo       by remember { mutableStateOf(currentFilter.dateTo) }
+    var categorySlug by remember { mutableStateOf(currentFilter.categorySlug) }
+    var amountMinText by remember { mutableStateOf(currentFilter.amountMin?.toLong()?.toString() ?: "") }
+    var amountMaxText by remember { mutableStateOf(currentFilter.amountMax?.toLong()?.toString() ?: "") }
+
+    var allCategories by remember { mutableStateOf<List<Category>>(emptyList()) }
+    LaunchedEffect(Unit) {
+        val repo             = ApiCategoryRepository()
+        val expenseDeferred  = async { repo.getCategories(CategoryFilter.EXPENSE) }
+        val incomeDeferred   = async { repo.getCategories(CategoryFilter.INCOME) }
+        val list = mutableListOf<Category>()
+        val exp = expenseDeferred.await(); if (exp is Result.Success) list += exp.data
+        val inc = incomeDeferred.await();  if (inc is Result.Success) list += inc.data
+        allCategories = list
+    }
+
+    val dateFormatter = remember { SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()) }
+
+    fun buildFilter() = OperationsExtraFilter(
+        datePreset   = datePreset,
+        dateFrom     = if (datePreset == DatePreset.CUSTOM) dateFrom else null,
+        dateTo       = if (datePreset == DatePreset.CUSTOM) dateTo   else null,
+        categorySlug = categorySlug,
+        amountMin    = amountMinText.toDoubleOrNull(),
+        amountMax    = amountMaxText.toDoubleOrNull()
+    )
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState       = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor   = colors.cardBackground,
+        dragHandle       = null,
+        shape            = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.9f)
+        ) {
+            // ── Header ────────────────────────────────────────────────────────
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment     = Alignment.CenterVertically
+            ) {
+                Text(
+                    text       = "Фильтры",
+                    fontSize   = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color      = colors.textPrimary
+                )
+                IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.Default.Close, null, tint = colors.textSecondary)
+                }
+            }
+            HorizontalDivider(color = colors.cardBorder)
+
+            // ── Scrollable content ────────────────────────────────────────────
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+
+                // ── Период ────────────────────────────────────────────────────
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Период", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.textPrimary)
+                    val presets = DatePreset.entries
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        presets.chunked(3).forEach { row ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                row.forEach { preset ->
+                                    val selected = datePreset == preset
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(if (selected) PrimaryBlue else colors.inputBackground)
+                                            .clickable { datePreset = preset }
+                                            .padding(vertical = 9.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text       = preset.label,
+                                            fontSize   = 13.sp,
+                                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                                            color      = if (selected) White else colors.textSecondary
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Кастомный период — два date picker
+                    if (datePreset == DatePreset.CUSTOM) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            listOf(
+                                "От"  to dateFrom,
+                                "До" to dateTo
+                            ).forEach { (label, millis) ->
+                                Row(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .border(1.dp, colors.cardBorder, RoundedCornerShape(8.dp))
+                                        .clickable {
+                                            val cal = Calendar.getInstance().apply {
+                                                if (millis != null) timeInMillis = millis
+                                            }
+                                            DatePickerDialog(
+                                                context,
+                                                { _, y, m, d ->
+                                                    val picked = Calendar.getInstance()
+                                                        .apply { set(y, m, d) }.timeInMillis
+                                                    if (label == "От") dateFrom = picked
+                                                    else               dateTo   = picked
+                                                },
+                                                cal.get(Calendar.YEAR),
+                                                cal.get(Calendar.MONTH),
+                                                cal.get(Calendar.DAY_OF_MONTH)
+                                            ).show()
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment     = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.DateRange, null,
+                                        tint     = colors.textSecondary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text     = if (millis != null) dateFormatter.format(Date(millis)) else label,
+                                        fontSize = 13.sp,
+                                        color    = if (millis != null) colors.textPrimary else colors.textSecondary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ── Категория ─────────────────────────────────────────────────
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Категория", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.textPrimary)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        // Чип "Все"
+                        item {
+                            val selected = categorySlug == null
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(if (selected) PrimaryBlue else colors.inputBackground)
+                                    .clickable { categorySlug = null }
+                                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text       = "Все",
+                                    fontSize   = 13.sp,
+                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                                    color      = if (selected) White else colors.textSecondary
+                                )
+                            }
+                        }
+                        items(allCategories) { category ->
+                            val selected = categorySlug == category.slug
+                            val cfg      = categoryIconConfig(category.slug, category.name)
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(if (selected) PrimaryBlue else colors.inputBackground)
+                                    .clickable { categorySlug = category.slug }
+                                    .padding(start = 6.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
+                                verticalAlignment     = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .background(
+                                            if (selected) White.copy(alpha = 0.25f) else cfg.bgColor,
+                                            CircleShape
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = cfg.icon,
+                                        contentDescription = null,
+                                        tint     = if (selected) White else cfg.iconColor,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                                Text(
+                                    text       = category.name,
+                                    fontSize   = 13.sp,
+                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                                    color      = if (selected) White else colors.textSecondary
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // ── Сумма ─────────────────────────────────────────────────────
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Сумма (₽)", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.textPrimary)
+                    Row(
+                        modifier              = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        listOf(
+                            "От"  to amountMinText,
+                            "До" to amountMaxText
+                        ).forEachIndexed { idx, (label, value) ->
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(label, fontSize = 12.sp, color = colors.textSecondary)
+                                TextField(
+                                    value         = value,
+                                    onValueChange = { v ->
+                                        if (v.isEmpty() || v.matches(Regex("^\\d*$"))) {
+                                            if (idx == 0) amountMinText = v else amountMaxText = v
+                                        }
+                                    },
+                                    placeholder   = { Text("0", color = colors.textSecondary) },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    singleLine    = true,
+                                    colors        = TextFieldDefaults.colors(
+                                        unfocusedContainerColor = colors.inputBackground,
+                                        focusedContainerColor   = colors.inputBackground,
+                                        unfocusedIndicatorColor = Color.Transparent,
+                                        focusedIndicatorColor   = Color.Transparent,
+                                        unfocusedTextColor      = colors.textPrimary,
+                                        focusedTextColor        = colors.textPrimary
+                                    ),
+                                    shape    = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.fillMaxWidth().height(56.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(4.dp))
+            }
+
+            // ── Footer ────────────────────────────────────────────────────────
+            HorizontalDivider(color = colors.cardBorder)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedButton(
+                    onClick  = {
+                        onApply(OperationsExtraFilter())
+                    },
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    shape    = RoundedCornerShape(8.dp),
+                    colors   = ButtonDefaults.outlinedButtonColors(contentColor = colors.textPrimary)
+                ) {
+                    Text("Сбросить", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                }
+                Button(
+                    onClick  = { onApply(buildFilter()) },
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    shape    = RoundedCornerShape(8.dp),
+                    colors   = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
+                ) {
+                    Text("Применить", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = White)
+                }
+            }
+        }
     }
 }

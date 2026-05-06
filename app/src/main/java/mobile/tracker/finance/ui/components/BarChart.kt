@@ -1,5 +1,6 @@
 package mobile.tracker.finance.ui.components
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -68,6 +69,7 @@ fun BarChartSection(
 /**
  * Компонент столбчатой диаграммы
  */
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 private fun BarChart(monthlyStats: List<MonthlyStats>) {
     val maxValue = monthlyStats.maxOfOrNull { maxOf(it.income, it.expense) } ?: 0.0

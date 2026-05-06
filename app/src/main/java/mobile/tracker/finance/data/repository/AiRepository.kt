@@ -9,7 +9,6 @@ import mobile.tracker.finance.utils.Result
 
 /**
  * Репозиторий для работы с ИИ-помощником.
- * TODO: заменить MockAiRepository на реальную реализацию при подключении AI-бекенда.
  */
 interface AiRepository {
 

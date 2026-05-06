@@ -32,6 +32,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import mobile.tracker.finance.navigation.Screen
 import mobile.tracker.finance.ui.components.BottomNavBar
+import mobile.tracker.finance.ui.components.GradientBackground
 import mobile.tracker.finance.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
@@ -66,6 +67,15 @@ fun SettingsScreen(
         if (granted) viewModel.onTogglePushNotifications()
     }
 
+    // Выход из аккаунта
+    LaunchedEffect(uiState.loggedOut) {
+        if (uiState.loggedOut) {
+            navController.navigate(Screen.Login.route) {
+                popUpTo(0) { inclusive = true }
+            }
+        }
+    }
+
     // Toast notifications
     LaunchedEffect(uiState.importMessage) {
         uiState.importMessage?.let {
@@ -90,9 +100,10 @@ fun SettingsScreen(
         )
     }
 
+    GradientBackground {
     Scaffold(
         topBar = {
-            SettingsTopBar(onEditProfile = viewModel::onEditProfile)
+            SettingsTopBar()
         },
         bottomBar = {
             BottomNavBar(
@@ -119,7 +130,7 @@ fun SettingsScreen(
                 }
             )
         },
-        containerColor = LocalAppColors.current.background
+        containerColor = Color.Transparent
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -150,20 +161,6 @@ fun SettingsScreen(
                     checked     = uiState.isDarkTheme,
                     onToggle    = { viewModel.onToggleDarkTheme() }
                 )
-                SettingsDivider()
-                NavigationRow(
-                    leadingIcon = { RubleIcon() },
-                    title       = "Валюта",
-                    subtitle    = uiState.currency,
-                    onClick     = viewModel::onCurrencyClick
-                )
-                SettingsDivider()
-                NavigationRow(
-                    leadingIcon = { DateIcon() },
-                    title       = "Формат даты",
-                    subtitle    = uiState.dateFormat,
-                    onClick     = viewModel::onDateFormatClick
-                )
             }
 
             Spacer(Modifier.height(16.dp))
@@ -185,14 +182,6 @@ fun SettingsScreen(
                         }
                     }
                 )
-                SettingsDivider()
-                ToggleRow(
-                    leadingIcon = null,
-                    title       = "Email-рассылка",
-                    subtitle    = "Еженедельный отчёт",
-                    checked     = uiState.emailNewsletterEnabled,
-                    onToggle    = { viewModel.onToggleEmailNewsletter() }
-                )
             }
 
             Spacer(Modifier.height(16.dp))
@@ -205,14 +194,6 @@ fun SettingsScreen(
                     leadingIcon = { LockIcon() },
                     title       = "Сменить пароль",
                     onClick     = viewModel::onChangePassword
-                )
-                SettingsDivider()
-                ToggleRow(
-                    leadingIcon = { BiometricsIcon() },
-                    title       = "Биометрия",
-                    subtitle    = "Face ID / Отпечаток",
-                    checked     = uiState.biometricsEnabled,
-                    onToggle    = { viewModel.onToggleBiometrics() }
                 )
             }
 
@@ -275,102 +256,27 @@ fun SettingsScreen(
             Spacer(Modifier.height(16.dp))
         }
     }
+    }
 }
 
 // ─── Top Bar ──────────────────────────────────────────────────────────────────
 
 @Composable
-private fun SettingsTopBar(onEditProfile: () -> Unit) {
+private fun SettingsTopBar() {
     val colors = LocalAppColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(colors.cardBackground)
+            .background(Color.Transparent)
             .statusBarsPadding()
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = null,
-                        tint = TextPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Text(
-                    text = "Настройки",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextPrimary
-                )
-            }
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = { /* TODO: открыть уведомления */ }
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Уведомления",
-                            tint = TextPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .offset(x = 0.dp, y = 2.dp)
-                            .size(8.dp)
-                            .background(BadgeRed, CircleShape)
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .background(PrimaryBlue, CircleShape)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = onEditProfile
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Редактировать профиль",
-                        tint = White,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-        }
+        Text(
+            text = "Настройки",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = TextPrimary,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+        )
         HorizontalDivider(color = colors.divider, thickness = 1.dp)
     }
 }

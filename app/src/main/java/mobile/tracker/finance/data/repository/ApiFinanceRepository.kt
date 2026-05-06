@@ -19,17 +19,16 @@ class ApiFinanceRepository : FinanceRepository {
             val response = api.getCategoryExpenses(month)
             if (response.isSuccessful) {
                 response.body()?.let { dtos ->
-                    // Бекенд может вернуть несколько slug-ов, которые маппятся в OTHER.
-                    // Группируем по категории и суммируем amount + percentage.
                     val merged = dtos
                         .map { it.toDomain() }
-                        .groupBy { it.category }
+                        .groupBy { it.categoryName }
                         .map { (_, items) ->
                             items.first().copy(
                                 amount     = items.sumOf { it.amount },
                                 percentage = items.sumOf { it.percentage.toDouble() }.toFloat()
                             )
                         }
+                        .sortedByDescending { it.amount }
                     Result.Success(merged)
                 } ?: Result.Error("Пустой ответ от сервера")
             } else {

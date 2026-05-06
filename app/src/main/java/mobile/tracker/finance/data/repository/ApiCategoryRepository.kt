@@ -14,9 +14,15 @@ class ApiCategoryRepository : CategoryRepository {
         safeCall { api.getCategories(type = filter.name) }
 
     override suspend fun addCategory(category: Category) {
-        try {
-            api.createCategory(category)
-        } catch (_: Exception) {}
+        try { api.createCategory(category) } catch (_: Exception) {}
+    }
+
+    override suspend fun updateCategory(category: Category) {
+        try { api.updateCategory(category.id, category) } catch (_: Exception) {}
+    }
+
+    override suspend fun deleteCategory(id: String) {
+        try { api.deleteCategory(id) } catch (_: Exception) {}
     }
 
     private suspend fun <T> safeCall(block: suspend () -> Response<T>): Result<T> {
